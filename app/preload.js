@@ -20,9 +20,12 @@ window.addEventListener('DOMContentLoaded', () => {
     async function createDisplay() {
         const screen = await ipcRenderer.invoke('display');
         display = await navigator.mediaDevices.getUserMedia({
-            audio: false,
+            audio: {
+                mandatory: {
+                    chromeMediaSource: 'desktop',
+                }
+            },
             video: {
-                cursor: "hidden",
                 mandatory: {
                     chromeMediaSource: 'desktop',
                     chromeMediaSourceId: screen.display[0].id,
