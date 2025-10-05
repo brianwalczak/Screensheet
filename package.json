@@ -1,0 +1,27 @@
+{
+  "name": "screensheet",
+  "version": "1.0.0",
+  "description": "An application built with Node.js and Electron allowing you to use your device from anywhere with remote desktop!",
+  "main": "index.js",
+  "scripts": {
+    "start": "npx electron .",
+    "pack": "npx electron-builder --dir",
+    "dist": "npx electron-builder",
+    "build:css": "npx tailwindcss -o ./public/output.css --content ./public/**/*.html --minify && npx tailwindcss -o ./app/output.css --content ./app/**/*.html --minify"
+  },
+  "author": "Brian Walczak",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "electron": "^38.2.1",
+    "electron-builder": "^26.0.12"
+  },
+  "dependencies": {
+    "@nut-tree-fork/nut-js": "^4.2.6",
+    "@tailwindcss/cli": "^4.1.14",
+    "express": "^5.1.0",
+    "install": "^0.13.0",
+    "npm": "^11.6.1",
+    "tailwindcss": "^4.1.14",
+    "uuid": "^13.0.0"
+  }
+}

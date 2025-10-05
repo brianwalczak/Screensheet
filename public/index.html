@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html class="h-full">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Viewer | Screensheet</title>
+    <link href="output.css" rel="stylesheet">
+</head>
+
+<body class="bg-gray-50 h-full">
+    <main class="w-full h-full flex items-center justify-center p-4">
+        <div class="w-full max-w-md">
+            <div id="connection-form" class="bg-white rounded-xl shadow-lg p-8">
+                <div class="text-center mb-8">
+                    <div class="flex items-center justify-center mb-3">
+                        <svg class="w-10 h-10 text-gray-700 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z">
+                            </path>
+                        </svg>
+                        <h1 class="text-3xl font-semibold text-gray-900">Screensheet</h1>
+                    </div>
+                    <p class="text-gray-600 text-sm">Enter a connection code to view a shared screen</p>
+                </div>
+
+                <div class="mb-6">
+                    <label class="block text-gray-700 text-sm font-medium mb-2">Connection Code</label>
+                    <input type="text" id="session-code" placeholder="Enter 8-digit code"
+                        class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-center text-xl font-mono py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent transition-all placeholder-gray-400"
+                        maxlength="8">
+                </div>
+
+                <button id="connect-btn" onclick="connection()"
+                    class="cursor-pointer w-full bg-gray-900 hover:bg-gray-800 text-white font-medium py-3 rounded-lg transition-colors duration-200 mb-4">
+                    Connect</button>
+
+                <div id="error-message" class="hidden bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div class="flex items-start space-x-2">
+                        <svg class="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+                            </path>
+                        </svg>
+                        <div>
+                            <p class="text-red-900 font-medium text-sm">Connection Failed</p>
+                            <p class="text-red-800 text-sm mt-1" id="error-text">Invalid connection code. Please try
+                                again.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <video class="w-screen h-screen object-cover fixed top-0 left-0 z-40 hidden" playsinline autoplay
+                nocontrols></video>
+
+            <div class="text-center mt-6">
+                <p class="text-gray-500 text-xs">© 2025 Brian Walczak</p>
+            </div>
+        </div>
+    </main>
+
+    <script src="index.js" type="text/javascript"></script>
+</body>
+
+</html>
