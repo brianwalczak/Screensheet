@@ -1,4 +1,4 @@
-const { screen } = require("@nut-tree-fork/nut-js");
+const { screen, mouse, keyboard, Key, Button, Point } = require("@nut-tree-fork/nut-js");
 const { app: electron, BrowserWindow, ipcMain, desktopCapturer } = require('electron');
 const keymaps = require('./keymaps.js');
 const settings = require('./settings.js');
@@ -64,6 +64,36 @@ ipcMain.handle('session:response', async (event, { sessionId, offer }) => {
     if (sessionId && offer) {
         sessions.set(sessionId, { offer, answer: null });
     }
+});
+
+ipcMain.handle('nutjs:mouse', async (event, data) => {
+    try {
+        const { x, y, method } = data;
+        await mouse.move(new Point(x, y));
+
+        if (data?.button && (method === 'mousedown' || method === 'mouseup')) {
+            const type = (method === 'mousedown' ? 'pressButton' : 'releaseButton');
+            await mouse[type](Button[data.button]);
+        }
+    } catch { };
+});
+
+ipcMain.handle('nutjs:keyboard', async (event, data) => {
+    try {
+        const { method, event } = data;
+
+        if (method === 'keydown') {
+            if (event.key.length === 1 && !event.relyingKey) { // type
+                await keyboard.type(event.key);
+            } else { // key press or release
+                await keyboard.pressKey(Key[keymaps[event.code]]);
+            }
+        } else if (method === 'keyup') {
+            if (event.key.length !== 1 || (event.key.length === 1 && event.relyingKey)) { // key release only
+                await keyboard.releaseKey(Key[keymaps[event.code]]);
+            }
+        }
+    } catch { };
 });
 
 electron.whenReady().then(() => {

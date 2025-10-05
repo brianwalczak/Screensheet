@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 let peers = new Map();
 let active = false;
 let display = null;
+let screenSize = null;
 
 window.addEventListener('DOMContentLoaded', () => {
     const input = document.querySelector('#code');
@@ -35,6 +36,7 @@ window.addEventListener('DOMContentLoaded', () => {
             },
         });
 
+        screenSize = { width: screen.width, height: screen.height };
         return display;
     }
 
@@ -53,6 +55,22 @@ window.addEventListener('DOMContentLoaded', () => {
         if (!display) {
             await createDisplay();
         }
+
+        const channel = pc.createDataChannel('input');
+
+        channel.onopen = () => {
+            channel.send(JSON.stringify(screenSize));
+        };
+
+        channel.onmessage = (e) => {
+            try {
+                const message = JSON.parse(e.data);
+
+                if (message.name && message.method) {
+                    ipcRenderer.invoke(`nutjs:${message.name}`, message);
+                }
+            } catch { };
+        };
 
         display.getTracks().forEach(track => pc.addTrack(track, display));
         const offer = await pc.createOffer();
@@ -162,7 +180,7 @@ window.addEventListener('DOMContentLoaded', () => {
         },
         copy: async () => {
             if (!active) return;
-            
+
             input.select();
             document.execCommand('copy');
             input.selectionEnd = input.selectionStart;
