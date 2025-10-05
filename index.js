@@ -1,5 +1,7 @@
 const { screen } = require("@nut-tree-fork/nut-js");
 const { app: electron, BrowserWindow, ipcMain, desktopCapturer } = require('electron');
+const keymaps = require('./keymaps.js');
+const settings = require('./settings.js');
 const { v4: uuidv4 } = require('uuid');
 const express = require('express');
 const path = require('path');
@@ -8,7 +10,7 @@ let window;
 const app = express();
 let activeCode = null;
 const sessions = new Map();
-const PORT = 3000;
+const PORT = settings.port ?? 3000;
 
 function createWindow() {
     window = new BrowserWindow({
