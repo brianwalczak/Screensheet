@@ -28,17 +28,17 @@ window.addEventListener('DOMContentLoaded', () => {
         return dst.stream.getAudioTracks()[0];
     })();
 
-    function toggleAudio(val) {
-        const span = audioToggle.querySelector('span');
+    function toggleChange(toggle, val) {
+        const span = toggle.querySelector('span');
 
         if (val) {
-            audioToggle.classList.remove('bg-gray-300');
-            audioToggle.classList.add('bg-gray-900');
+            toggle.classList.remove('bg-gray-300');
+            toggle.classList.add('bg-gray-900');
             span.classList.remove('translate-x-1');
             span.classList.add('translate-x-6');
         } else {
-            audioToggle.classList.remove('bg-gray-900');
-            audioToggle.classList.add('bg-gray-300');
+            toggle.classList.remove('bg-gray-900');
+            toggle.classList.add('bg-gray-300');
             span.classList.remove('translate-x-6');
             span.classList.add('translate-x-1');
         }
@@ -49,7 +49,7 @@ window.addEventListener('DOMContentLoaded', () => {
             audio.checked = (settings.audio ?? true);
             port.value = (settings.port ?? 3000);
 
-            toggleAudio(audio.checked);
+            toggleChange(audioToggle, audio.checked);
         }
     });
 
@@ -60,7 +60,7 @@ window.addEventListener('DOMContentLoaded', () => {
             audio: audio.checked
         });
 
-        toggleAudio(audio.checked);
+        toggleChange(audioToggle, audio.checked);
         return updateAudio();
     });
 
