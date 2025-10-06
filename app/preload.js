@@ -19,6 +19,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const audioToggle = document.querySelector('#audio_toggle');
     const audio = document.querySelector('#audio');
+    const controlToggle = document.querySelector('#control_toggle');
+    const control = document.querySelector('#control');
     const port = document.querySelector('#port');
 
     const emptyAudio = (() => {
@@ -47,9 +49,11 @@ window.addEventListener('DOMContentLoaded', () => {
     ipcRenderer.invoke('settings:load').then(settings => {
         if (settings) {
             audio.checked = (settings.audio ?? true);
+            control.checked = (settings.control ?? true);
             port.value = (settings.port ?? 3000);
 
             toggleChange(audioToggle, audio.checked);
+            toggleChange(controlToggle, control.checked);
         }
     });
 
@@ -62,6 +66,16 @@ window.addEventListener('DOMContentLoaded', () => {
 
         toggleChange(audioToggle, audio.checked);
         return updateAudio();
+    });
+
+    controlToggle.addEventListener('click', () => {
+        control.checked = (!control.checked);
+
+        ipcRenderer.invoke('settings:update', {
+            control: control.checked
+        });
+
+        return toggleChange(controlToggle, control.checked);
     });
 
     async function updateAudio() {
@@ -152,7 +166,7 @@ window.addEventListener('DOMContentLoaded', () => {
             try {
                 const message = JSON.parse(e.data);
 
-                if (message.name && message.method) {
+                if (message.name && message.method && control.checked) {
                     ipcRenderer.invoke(`nutjs:${message.name}`, message);
                 }
             } catch { };

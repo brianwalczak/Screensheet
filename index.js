@@ -6,7 +6,7 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 
-const settingsPath = path.join(electron.getPath('userData'), 'settings.json');
+const settingsPath = path.join((electron.isPackaged ? electron.getPath('userData') : __dirname), 'settings.json');
 const app = express();
 let activeCode = null;
 const sessions = new Map();
@@ -192,14 +192,19 @@ app.post('/session/:code/answer', express.json(), (req, res) => {
 
 (async () => {
     try {
-        if (!fs.existsSync(settingsPath)) {
-            fs.writeFileSync(settingsPath, JSON.stringify({
-                port: 3000,
-                audio: true
-            }, null, 4));
+        const defaults = { port: 3000, audio: true, control: true };
+        let data;
+
+        if (fs.existsSync(settingsPath)) {
+            const file = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+            data = { ...defaults, ...file }; // apply defaults if missing
+        } else {
+            data = defaults;
         }
 
-        settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+        fs.writeFileSync(settingsPath, JSON.stringify(data, null, 4));
+        settings = data;
+
         await newServer();
     } catch (error) {
         console.error('Error loading settings:', error);
