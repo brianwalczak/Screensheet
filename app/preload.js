@@ -49,12 +49,12 @@ const labels = {
 };
 
 let peers = new Map();
-let isMagic = false;
 let active = false;
 let display = null;
 let screenSize = null;
 
 window.addEventListener('DOMContentLoaded', () => {
+    const magicToggle = document.querySelector('#magic_toggle');
     const magic = document.querySelector('#magic');
 
     const input = document.querySelector('#code');
@@ -98,7 +98,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function getLabel(key) {
-        return isMagic ? labels.magic[key] : labels.normal[key];
+        return magic.checked ? labels.magic[key] : labels.normal[key];
     }
 
     const findMatching = (text, location) => {
@@ -118,13 +118,13 @@ window.addEventListener('DOMContentLoaded', () => {
         start.textContent = getLabel('startBtn');
         stop.textContent = getLabel('endBtn');
         copy.textContent = getLabel('copyBtn');
-        status.textContent = findMatching(status.textContent, (isMagic ? 'normal' : 'magic')) ?? status.textContent;
+        status.textContent = findMatching(status.textContent, (magic.checked ? 'normal' : 'magic')) ?? status.textContent;
 
         document.querySelector('.settings span[for="audio"]').textContent = getLabel('audioSharing');
         document.querySelector('.settings span[for="control"]').textContent = getLabel('remoteControl');
         document.querySelector('.settings span[for="port"]').textContent = getLabel('serverPort');
 
-        if (isMagic) {
+        if (magic.checked) {
             document.body.classList.remove('bg-white');
             document.body.classList.add('bg-purple-100');
 
@@ -133,10 +133,10 @@ window.addEventListener('DOMContentLoaded', () => {
             document.querySelector('.settings').classList.add('bg-purple-50');
             document.querySelector('.settings').classList.add('border-purple-200');
 
-            magic.classList.remove('bg-white');
-            magic.classList.remove('hover:bg-gray-100');
-            magic.classList.add('bg-purple-200');
-            magic.classList.add('hover:bg-purple-300');
+            magicToggle.classList.remove('bg-white');
+            magicToggle.classList.remove('hover:bg-gray-100');
+            magicToggle.classList.add('bg-purple-200');
+            magicToggle.classList.add('hover:bg-purple-300');
         } else {
             document.body.classList.remove('bg-purple-100');
             document.body.classList.add('bg-white');
@@ -146,26 +146,33 @@ window.addEventListener('DOMContentLoaded', () => {
             document.querySelector('.settings').classList.add('bg-gray-50');
             document.querySelector('.settings').classList.add('border-gray-200');
 
-            magic.classList.remove('bg-purple-200');
-            magic.classList.remove('hover:bg-purple-300');
-            magic.classList.add('bg-white');
-            magic.classList.add('hover:bg-gray-100');
+            magicToggle.classList.remove('bg-purple-200');
+            magicToggle.classList.remove('hover:bg-purple-300');
+            magicToggle.classList.add('bg-white');
+            magicToggle.classList.add('hover:bg-gray-100');
         }
     }
 
     ipcRenderer.invoke('settings:load').then(settings => {
         if (settings) {
+            magic.checked = (settings.magic ?? false);
             audio.checked = (settings.audio ?? true);
             control.checked = (settings.control ?? true);
             port.value = (settings.port ?? 3000);
 
             toggleChange(audioToggle, audio.checked);
             toggleChange(controlToggle, control.checked);
+            if(magic.checked) updateLabels();
         }
     });
 
-    magic.addEventListener('click', () => {
-        isMagic = !isMagic;
+    magicToggle.addEventListener('click', () => {
+        magic.checked = (!magic.checked);
+
+        ipcRenderer.invoke('settings:update', {
+            magic: magic.checked
+        });
+
         return updateLabels();
     });
 

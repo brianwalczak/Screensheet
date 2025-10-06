@@ -192,7 +192,7 @@ app.post('/session/:code/answer', express.json(), (req, res) => {
 
 (async () => {
     try {
-        const defaults = { port: 3000, audio: true, control: true };
+        const defaults = { port: 3000, audio: true, control: true, magic: false };
         let data;
 
         if (fs.existsSync(settingsPath)) {
