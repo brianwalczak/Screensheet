@@ -16,6 +16,20 @@
     input[type="number"] {
       -moz-appearance: textfield;
     }
+
+    body::-webkit-scrollbar,
+    main::-webkit-scrollbar {
+      display: none;
+    }
+
+    body, main {
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    main {
+      overflow: auto;
+    }
   </style>
 </head>
 
