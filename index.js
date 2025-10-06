@@ -6,10 +6,10 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 
-let settings = JSON.parse(fs.readFileSync(path.join(__dirname, 'settings.json'), 'utf8'));
 const app = express();
 let activeCode = null;
 const sessions = new Map();
+let settings;
 let window;
 let server;
 
@@ -189,4 +189,18 @@ app.post('/session/:code/answer', express.json(), (req, res) => {
     res.json({ success: true });
 });
 
-newServer();
+(async () => {
+    try {
+        if (!fs.existsSync(path.join(__dirname, 'settings.json'))) {
+            fs.writeFileSync(path.join(__dirname, 'settings.json'), JSON.stringify({
+                port: 3000,
+                audio: true
+            }, null, 4));
+        }
+
+        settings = JSON.parse(fs.readFileSync(path.join(__dirname, 'settings.json'), 'utf8'));
+        await newServer();
+    } catch (error) {
+        console.error('Error loading settings:', error);
+    }
+})();
