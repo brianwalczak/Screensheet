@@ -21,18 +21,17 @@ window.addEventListener('DOMContentLoaded', () => {
     const audio = document.querySelector('#audio');
     const port = document.querySelector('#port');
 
-    ipcRenderer.invoke('settings:load').then(settings => {
-        if (settings) {
-            audio.checked = (settings.audio ?? true);
-            port.value = (settings.port ?? 3000);
-        }
-    });
+    const emptyAudio = (() => {
+        const ctx = new AudioContext();
+        const dst = ctx.createMediaStreamDestination();
 
-    audioToggle.addEventListener('click', () => {
+        return dst.stream.getAudioTracks()[0];
+    })();
+
+    function toggleAudio(val) {
         const span = audioToggle.querySelector('span');
-        audio.checked = (!audio.checked);
 
-        if (audio.checked) {
+        if (val) {
             audioToggle.classList.remove('bg-gray-300');
             audioToggle.classList.add('bg-gray-900');
             span.classList.remove('translate-x-1');
@@ -43,11 +42,45 @@ window.addEventListener('DOMContentLoaded', () => {
             span.classList.remove('translate-x-6');
             span.classList.add('translate-x-1');
         }
+    }
+
+    ipcRenderer.invoke('settings:load').then(settings => {
+        if (settings) {
+            audio.checked = (settings.audio ?? true);
+            port.value = (settings.port ?? 3000);
+
+            toggleAudio(audio.checked);
+        }
+    });
+
+    audioToggle.addEventListener('click', () => {
+        audio.checked = (!audio.checked);
 
         ipcRenderer.invoke('settings:update', {
             audio: audio.checked
         });
+
+        toggleAudio(audio.checked);
+        return updateAudio();
     });
+
+    async function updateAudio() {
+        if (!active || !display) return;
+
+        for (let pc of peers.values()) {
+            for (let sender of pc.getSenders()) {
+                if (sender.track.kind === 'audio') {
+                    if (audio.checked) {
+                        if (display.getAudioTracks().length !== 0) {
+                            sender.replaceTrack(display.getAudioTracks()[0]);
+                        }
+                    } else {
+                        sender.replaceTrack(emptyAudio);
+                    }
+                }
+            }
+        }
+    }
 
     let oldPort = null;
     port.addEventListener('focus', () => {
@@ -68,14 +101,13 @@ window.addEventListener('DOMContentLoaded', () => {
 
     async function createDisplay() {
         const screen = await ipcRenderer.invoke('display');
-        const enableAudio = audio?.checked ?? true;
 
         display = await navigator.mediaDevices.getUserMedia({
-            audio: enableAudio ? {
+            audio: {
                 mandatory: {
                     chromeMediaSource: 'desktop',
                 }
-            } : false,
+            },
             video: {
                 mandatory: {
                     chromeMediaSource: 'desktop',
@@ -126,7 +158,11 @@ window.addEventListener('DOMContentLoaded', () => {
             } catch { };
         };
 
-        display.getTracks().forEach(track => pc.addTrack(track, display));
+        display.getTracks().forEach(track => {
+            if (track.kind === 'audio' && !audio.checked) return pc.addTrack(emptyAudio, display); // replace with silent track if audio disabled
+            pc.addTrack(track, display); // add actual track if audio enabled or if video
+        });
+
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
 
