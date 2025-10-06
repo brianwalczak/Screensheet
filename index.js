@@ -1,16 +1,30 @@
 const { screen, mouse, keyboard, Key, Button, Point } = require("@nut-tree-fork/nut-js");
 const { app: electron, BrowserWindow, ipcMain, desktopCapturer } = require('electron');
 const keymaps = require('./keymaps.js');
-const settings = require('./settings.json');
 const { v4: uuidv4 } = require('uuid');
 const express = require('express');
 const path = require('path');
-let window;
+const fs = require('fs');
 
+let settings = JSON.parse(fs.readFileSync(path.join(__dirname, 'settings.json'), 'utf8'));
 const app = express();
 let activeCode = null;
 const sessions = new Map();
-const PORT = settings.port ?? 3000;
+let window;
+let server;
+
+async function newServer(port = (settings?.port ?? 3000)) {
+    let restart = false;
+
+    if (server) {
+        restart = true;
+        await server.close();
+    }
+
+    server = app.listen(port, () => {
+        console.log(`Server has been ${restart ? 'restarted' : 'started'} on http://localhost:${port}.`);
+    });
+}
 
 function createWindow() {
     window = new BrowserWindow({
@@ -96,6 +110,28 @@ ipcMain.handle('nutjs:keyboard', async (event, data) => {
     } catch { };
 });
 
+ipcMain.handle('settings:load', async () => {
+    return settings;
+});
+
+
+ipcMain.handle('settings:update', async (event, modified) => {
+    try {
+        const updated = { ...settings, ...modified };
+        fs.writeFileSync(path.join(__dirname, 'settings.json'), JSON.stringify(updated, null, 4));
+
+        if (modified.port && modified.port !== (settings?.port ?? 3000) && server) {
+            await newServer(modified.port);
+        }
+
+        settings = updated;
+        return settings;
+    } catch (error) {
+        console.error(error);
+        return settings;
+    }
+});
+
 electron.whenReady().then(() => {
     createWindow();
 
@@ -153,6 +189,4 @@ app.post('/session/:code/answer', express.json(), (req, res) => {
     res.json({ success: true });
 });
 
-app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
-});
+newServer();

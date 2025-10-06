@@ -17,14 +17,58 @@ window.addEventListener('DOMContentLoaded', () => {
     const container = document.querySelector('#container');
     const warning = document.querySelector('#warning');
 
+    const audioToggle = document.querySelector('#audio_toggle');
+    const audio = document.querySelector('#audio');
+    const port = document.querySelector('#port');
+
+    ipcRenderer.invoke('settings:load').then(settings => {
+        if (settings) {
+            audio.checked = (settings.audio ?? true);
+            port.value = (settings.port ?? 3000);
+        }
+    });
+
+    audioToggle.addEventListener('click', () => {
+        const span = audioToggle.querySelector('span');
+        audio.checked = (!audio.checked);
+
+        if (audio.checked) {
+            audioToggle.classList.remove('bg-gray-300');
+            audioToggle.classList.add('bg-gray-900');
+            span.classList.remove('translate-x-1');
+            span.classList.add('translate-x-6');
+        } else {
+            audioToggle.classList.remove('bg-gray-900');
+            audioToggle.classList.add('bg-gray-300');
+            span.classList.remove('translate-x-6');
+            span.classList.add('translate-x-1');
+        }
+
+        ipcRenderer.invoke('settings:update', {
+            audio: audio.checked
+        });
+    });
+
+    port.addEventListener('change', () => {
+        const portValue = parseInt(port.value);
+
+        if (portValue >= 1024 && portValue <= 65535) {
+            ipcRenderer.invoke('settings:update', {
+                port: portValue
+            });
+        }
+    });
+
     async function createDisplay() {
         const screen = await ipcRenderer.invoke('display');
+        const enableAudio = audio?.checked ?? true;
+
         display = await navigator.mediaDevices.getUserMedia({
-            audio: {
+            audio: enableAudio ? {
                 mandatory: {
                     chromeMediaSource: 'desktop',
                 }
-            },
+            } : false,
             video: {
                 mandatory: {
                     chromeMediaSource: 'desktop',
