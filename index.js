@@ -154,7 +154,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/session/:code', async (req, res) => {
     const code = req.params.code.toUpperCase();
-    if (!activeCode || code !== activeCode) return res.status(404).json({ error: 'It looks like this connection code is invalid.' });
+    if (!activeCode || code !== activeCode) return res.status(404).json({ error: true, code: 404 });
 
     const sessionId = uuidv4();
     window.webContents.send('session:request', { sessionId });
@@ -173,16 +173,16 @@ app.get('/session/:code', async (req, res) => {
         attempts++;
     }
 
-    return res.status(408).json({ error: 'Connection was closed unexpectedly.' });
+    return res.status(408).json({ error: true, code: 408 });
 });
 
 app.post('/session/:code/answer', express.json(), (req, res) => {
     const code = req.params.code.toUpperCase();
     const sessionId = req.body?.id;
-    if (!activeCode || code !== activeCode || !sessionId) return res.status(400).json({ error: 'It looks like this connection code is invalid.' });
+    if (!activeCode || code !== activeCode || !sessionId) return res.status(404).json({ error: true, code: 404 });
 
     const session = sessions.get(sessionId);
-    if (!session || !session.offer || session.answer) return res.status(404).json({ error: 'It looks like this connection code is invalid.' });
+    if (!session || !session.offer || session.answer) return res.status(404).json({ error: true, code: 404 });
 
     sessions.set(sessionId, { ...session, answer: req.body?.answer });
     window.webContents.send('session:answer', { sessionId, answer: req.body?.answer });

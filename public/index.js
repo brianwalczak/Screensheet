@@ -44,7 +44,17 @@ async function connection() {
     const res = await req.json();
 
     if (res.error) {
-        showError(res.error);
+        switch (res.code) {
+            case 404:
+                showError('It looks like this connection code is invalid.');
+                break;
+            case 408:
+                showError('Connection was closed unexpectedly.');
+                break;
+            default:
+                showError('An unknown error occurred. Please try again.');
+                break;
+        }
     } else {
         await pc.setRemoteDescription(res.offer);
 
