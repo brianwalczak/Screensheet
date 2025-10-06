@@ -49,6 +49,11 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    let oldPort = null;
+    port.addEventListener('focus', () => {
+        oldPort = port.value;
+    });
+
     port.addEventListener('change', () => {
         const portValue = parseInt(port.value);
 
@@ -56,6 +61,8 @@ window.addEventListener('DOMContentLoaded', () => {
             ipcRenderer.invoke('settings:update', {
                 port: portValue
             });
+        } else {
+            port.value = oldPort ?? 3000;
         }
     });
 
