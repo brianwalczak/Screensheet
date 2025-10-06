@@ -6,6 +6,7 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 
+const settingsPath = path.join(electron.getPath('userData'), 'settings.json');
 const app = express();
 let activeCode = null;
 const sessions = new Map();
@@ -118,7 +119,7 @@ ipcMain.handle('settings:load', async () => {
 ipcMain.handle('settings:update', async (event, modified) => {
     try {
         const updated = { ...settings, ...modified };
-        fs.writeFileSync(path.join(__dirname, 'settings.json'), JSON.stringify(updated, null, 4));
+        fs.writeFileSync(settingsPath, JSON.stringify(updated, null, 4));
 
         if (modified.port && modified.port !== (settings?.port ?? 3000) && server) {
             await newServer(modified.port);
@@ -191,14 +192,14 @@ app.post('/session/:code/answer', express.json(), (req, res) => {
 
 (async () => {
     try {
-        if (!fs.existsSync(path.join(__dirname, 'settings.json'))) {
-            fs.writeFileSync(path.join(__dirname, 'settings.json'), JSON.stringify({
+        if (!fs.existsSync(settingsPath)) {
+            fs.writeFileSync(settingsPath, JSON.stringify({
                 port: 3000,
                 audio: true
             }, null, 4));
         }
 
-        settings = JSON.parse(fs.readFileSync(path.join(__dirname, 'settings.json'), 'utf8'));
+        settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
         await newServer();
     } catch (error) {
         console.error('Error loading settings:', error);

@@ -1,5 +1,6 @@
 {
   "name": "screensheet",
+  "productName": "Screensheet",
   "version": "1.0.0",
   "description": "An application built with Node.js and Electron allowing you to use your device from anywhere with remote desktop!",
   "main": "index.js",
@@ -11,6 +12,24 @@
   },
   "author": "Brian Walczak",
   "license": "Apache-2.0",
+  "build": {
+    "appId": "com.brianwalczak.screensheet",
+    "win": {
+      "target": "nsis"
+    },
+    "mac": {
+      "target": "dmg"
+    },
+    "linux": {
+      "target": "deb"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": false,
+      "perMachine": false,
+      "runAfterFinish": true
+    }
+  },
   "devDependencies": {
     "electron": "^38.2.1",
     "electron-builder": "^26.0.12"
