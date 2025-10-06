@@ -34,10 +34,10 @@
   </style>
 </head>
 
-<body class="bg-white h-full">
+<body class="bg-white h-full transition-colors duration-500 ease-in-out">
   <main class="w-full h-full max-w-md flex flex-col">
     <button id="magic"
-      class="cursor-pointer fixed top-4 right-4 w-10 h-10 rounded-full bg-white border border-gray-200 hover:bg-gray-100 transition-colors duration-200 flex items-center justify-center z-10">
+      class="cursor-pointer fixed top-4 right-4 w-10 h-10 rounded-full bg-white border border-gray-200 hover:bg-gray-100 transition-colors duration-500 ease-in-out flex items-center justify-center z-10">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"
         class="size-6">
         <path stroke-linecap="round" stroke-linejoin="round"
@@ -53,10 +53,10 @@
           </path>
         </svg>
 
-        <h1 class="text-3xl font-semibold text-gray-900">Screensheet</h1>
+        <h1 class="title text-3xl font-semibold text-gray-900">Screensheet</h1>
       </div>
 
-      <p class="text-gray-600 text-sm">Share your desktop remotely in seconds</p>
+      <p class="description text-gray-600 text-sm">Share your desktop remotely in seconds</p>
     </div>
 
     <div class="p-8 pt-0">
@@ -77,7 +77,7 @@
       </div>
 
       <div id="container" class="hidden relative mb-3">
-        <label class="block text-gray-700 text-sm font-medium mb-2">Connection Code</label>
+        <label class="code_label block text-gray-700 text-sm font-medium mb-2">Connection Code</label>
 
         <div class="relative">
           <input type="text" id="code" placeholder="—" readonly
@@ -96,15 +96,15 @@
           </svg>
 
           <div>
-            <p class="text-red-900 font-medium text-sm">Security Warning</p>
-            <p class="text-red-800 text-sm mt-1"><span class="font-semibold">Never</span> share this code with anyone
+            <p class="warning_title text-red-900 font-medium text-sm">Security Warning</p>
+            <p class="warning_description text-red-800 text-sm mt-1"><span class="font-semibold">Never</span> share this code with anyone
               you don't trust. It grants full device access.</p>
           </div>
         </div>
       </div>
 
       <div class="space-y-3 mt-[-12px]">
-        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
+        <div class="settings bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3 transition-colors duration-500 ease-in-out">
           <div class="flex items-center justify-between">
             <div class="flex items-center space-x-3">
               <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -112,7 +112,7 @@
                   d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z">
                 </path>
               </svg>
-              <span class="text-sm font-medium text-gray-700">Audio Sharing</span>
+              <span for="audio" class="text-sm font-medium text-gray-700">Audio Sharing</span>
             </div>
             <input type="checkbox" id="audio" class="hidden" checked />
 
@@ -130,7 +130,7 @@
                   d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122">
                 </path>
               </svg>
-              <span class="text-sm font-medium text-gray-700">Remote Control</span>
+              <span for="control" class="text-sm font-medium text-gray-700">Remote Control</span>
             </div>
             <input type="checkbox" id="control" class="hidden" checked />
 
@@ -148,7 +148,7 @@
                   d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01">
                 </path>
               </svg>
-              <span class="text-sm font-medium text-gray-700">Server Port</span>
+              <span for="port" class="text-sm font-medium text-gray-700">Server Port</span>
             </div>
             <input type="number" id="port" min="1024" max="65535" value="3000"
               class="w-20 bg-white border border-gray-300 text-gray-900 text-sm text-center py-1 px-2 rounded focus:outline-none focus:border-gray-400 transition-colors" />

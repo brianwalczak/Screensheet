@@ -1,11 +1,62 @@
 const { contextBridge, ipcRenderer } = require('electron');
+const labels = {
+    normal: {
+        title: "Screensheet",
+        description: "Share your desktop remotely in seconds",
+        codeLabel: "Connection Code",
+        warningTitle: "Security Warning",
+        warningDescription: `<span class="font-semibold">Never</span> share this code with anyone you don't trust. It grants full device access.`,
+
+        startBtn: "Start Session",
+        startingBtn: "Starting session...",
+        endBtn: "Stop Session",
+        copyBtn: "Copy",
+        copiedBtn: "Copied!",
+
+        connected: "Connected",
+        disconnected: "Disconnected",
+        waiting: "Waiting",
+        active: "Active",
+        inactive: "Inactive",
+
+        audioSharing: "Audio Sharing",
+        remoteControl: "Remote Control",
+        serverPort: "Server Port"
+    },
+    magic: {
+        title: "Magic Mode",
+        description: "Summon a portal to your dimension in seconds",
+        codeLabel: "Portal Key",
+        warningTitle: "Portal Warning",
+        warningDescription: `<span class="font-semibold">Never</span> share this key with untrusted beings. It grants complete access to your dimension.`,
+
+        startBtn: "Summon Portal",
+        startingBtn: "Summoning portal...",
+        endBtn: "Close Portal",
+        copyBtn: "Grab Key",
+        copiedBtn: "Grabbed!",
+
+        connected: "Portal Opened",
+        disconnected: "Portal Closed",
+        waiting: "Summoning",
+        active: "Open",
+        inactive: "Sealed",
+
+        audioSharing: "Sound Relay",
+        remoteControl: "Portal Control",
+        serverPort: "Portal Node"
+    }
+};
 
 let peers = new Map();
+let isMagic = false;
 let active = false;
 let display = null;
 let screenSize = null;
 
 window.addEventListener('DOMContentLoaded', () => {
+    const magic = document.querySelector('#magic');
+
     const input = document.querySelector('#code');
     const status = document.querySelector('#status');
     const statusDot = document.querySelector('#status_dot');
@@ -46,6 +97,62 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function getLabel(key) {
+        return isMagic ? labels.magic[key] : labels.normal[key];
+    }
+
+    const findMatching = (text, location) => {
+        const keyName = Object.keys(labels[location]).find(k => labels[location][k] === text);
+        if (!keyName) return null;
+
+        return labels[location === 'normal' ? 'magic' : 'normal'][keyName] ?? null;
+    };
+
+    function updateLabels() {
+        document.querySelector('.title').textContent = getLabel('title');
+        document.querySelector('.description').textContent = getLabel('description');
+        document.querySelector('.code_label').textContent = getLabel('codeLabel');
+        document.querySelector('.warning_title').textContent = getLabel('warningTitle');
+        document.querySelector('.warning_description').innerHTML = getLabel('warningDescription');
+
+        start.textContent = getLabel('startBtn');
+        stop.textContent = getLabel('endBtn');
+        copy.textContent = getLabel('copyBtn');
+        status.textContent = findMatching(status.textContent, (isMagic ? 'normal' : 'magic')) ?? status.textContent;
+
+        document.querySelector('.settings span[for="audio"]').textContent = getLabel('audioSharing');
+        document.querySelector('.settings span[for="control"]').textContent = getLabel('remoteControl');
+        document.querySelector('.settings span[for="port"]').textContent = getLabel('serverPort');
+
+        if (isMagic) {
+            document.body.classList.remove('bg-white');
+            document.body.classList.add('bg-purple-100');
+
+            document.querySelector('.settings').classList.remove('bg-gray-50');
+            document.querySelector('.settings').classList.remove('border-gray-200');
+            document.querySelector('.settings').classList.add('bg-purple-50');
+            document.querySelector('.settings').classList.add('border-purple-200');
+
+            magic.classList.remove('bg-white');
+            magic.classList.remove('hover:bg-gray-100');
+            magic.classList.add('bg-purple-200');
+            magic.classList.add('hover:bg-purple-300');
+        } else {
+            document.body.classList.remove('bg-purple-100');
+            document.body.classList.add('bg-white');
+
+            document.querySelector('.settings').classList.remove('bg-purple-50');
+            document.querySelector('.settings').classList.remove('border-purple-200');
+            document.querySelector('.settings').classList.add('bg-gray-50');
+            document.querySelector('.settings').classList.add('border-gray-200');
+
+            magic.classList.remove('bg-purple-200');
+            magic.classList.remove('hover:bg-purple-300');
+            magic.classList.add('bg-white');
+            magic.classList.add('hover:bg-gray-100');
+        }
+    }
+
     ipcRenderer.invoke('settings:load').then(settings => {
         if (settings) {
             audio.checked = (settings.audio ?? true);
@@ -55,6 +162,11 @@ window.addEventListener('DOMContentLoaded', () => {
             toggleChange(audioToggle, audio.checked);
             toggleChange(controlToggle, control.checked);
         }
+    });
+
+    magic.addEventListener('click', () => {
+        isMagic = !isMagic;
+        return updateLabels();
     });
 
     audioToggle.addEventListener('click', () => {
@@ -215,7 +327,7 @@ window.addEventListener('DOMContentLoaded', () => {
     function statusChange(sessionId, state) {
         if (!active) return;
         if (["connected", "completed"].includes(state)) {
-            updateStatus('Connected', 'bg-green-500');
+            updateStatus(getLabel('connected'), 'bg-green-500');
         } else if (["disconnected", "failed", "closed"].includes(state)) {
             peers.delete(sessionId);
 
@@ -228,22 +340,22 @@ window.addEventListener('DOMContentLoaded', () => {
             }
 
             if (!anyConnected) {
-                updateStatus('Disconnected', 'bg-red-500');
+                updateStatus(getLabel('disconnected'), 'bg-red-500');
             }
         }
     }
 
     contextBridge.exposeInMainWorld('session', {
         start: async () => {
-            updateStatus('Waiting', 'bg-yellow-500');
-            start.innerHTML = 'Starting session...';
+            updateStatus(getLabel('waiting'), 'bg-yellow-500');
+            start.innerHTML = getLabel('startingBtn');
 
             await createDisplay();
             start.classList.add('hidden');
             stop.classList.remove('hidden');
 
-            updateStatus('Active', 'bg-green-500');
-            start.innerHTML = 'Start Session';
+            updateStatus(getLabel('active'), 'bg-green-500');
+            start.innerHTML = getLabel('startBtn');
 
             input.value = await ipcRenderer.invoke('session:start');
             container.classList.remove('hidden');
@@ -272,7 +384,7 @@ window.addEventListener('DOMContentLoaded', () => {
             stop.classList.add('hidden');
             start.classList.remove('hidden');
 
-            updateStatus('Inactive', 'bg-gray-400');
+            updateStatus(getLabel('inactive'), 'bg-gray-400');
 
             input.value = '';
             container.classList.add('hidden');
@@ -288,10 +400,10 @@ window.addEventListener('DOMContentLoaded', () => {
             input.select();
             document.execCommand('copy');
             input.selectionEnd = input.selectionStart;
-            copy.textContent = 'Copied!';
+            copy.textContent = getLabel('copiedBtn');
 
             setTimeout(() => {
-                copy.textContent = 'Copy';
+                copy.textContent = getLabel('copyBtn');
             }, 1000);
         }
     });
