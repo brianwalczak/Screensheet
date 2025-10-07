@@ -48,11 +48,11 @@ const labels = {
     }
 };
 
-let peers = new Map();
-let waiting = [];
-let active = false;
-let display = null;
-let screenSize = null;
+let peers = new Map(); // stores active peer connections
+let waiting = []; // stores pending connection requests
+let active = false; // whether a session is currently active
+let display = null; // the current display media stream
+let screenSize = null; // the dimensions of `display` param
 
 window.addEventListener('DOMContentLoaded', () => {
     const magicToggle = document.querySelector('#magic_toggle');
@@ -75,6 +75,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const control = document.querySelector('#control');
     const port = document.querySelector('#port');
 
+    // Creates an empty audio track for when audio sharing is disabled
     const emptyAudio = (() => {
         const ctx = new AudioContext();
         const dst = ctx.createMediaStreamDestination();
@@ -82,6 +83,7 @@ window.addEventListener('DOMContentLoaded', () => {
         return dst.stream.getAudioTracks()[0];
     })();
 
+    // Changes the status of a toggle switch (UI change)
     function toggleChange(toggle, val) {
         const span = toggle.querySelector('span');
 
@@ -98,17 +100,20 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Returns the correct label based on whether magic mode is enabled
     function getLabel(key) {
         return magic.checked ? labels.magic[key] : labels.normal[key];
     }
 
+    // Finds a matching label in the opposite mode (for status updates)
     const findMatching = (text, location) => {
         const keyName = Object.keys(labels[location]).find(k => labels[location][k] === text);
         if (!keyName) return null;
 
         return labels[location === 'normal' ? 'magic' : 'normal'][keyName] ?? null;
-    };
+    }
 
+    // Updates all labels on the page based on the current mode
     function updateLabels() {
         document.querySelector('.title').textContent = getLabel('title');
         document.querySelector('.description').textContent = getLabel('description');
@@ -154,52 +159,7 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    ipcRenderer.invoke('settings:load').then(settings => {
-        if (settings) {
-            magic.checked = (settings.magic ?? false);
-            audio.checked = (settings.audio ?? true);
-            control.checked = (settings.control ?? true);
-            port.value = (settings.port ?? 3000);
-
-            toggleChange(audioToggle, audio.checked);
-            toggleChange(controlToggle, control.checked);
-            if (magic.checked) updateLabels();
-        }
-    });
-
-    document.querySelector('.tab-btn.connections').addEventListener('click', updateConnections);
-
-    magicToggle.addEventListener('click', () => {
-        magic.checked = (!magic.checked);
-
-        ipcRenderer.invoke('settings:update', {
-            magic: magic.checked
-        });
-
-        return updateLabels();
-    });
-
-    audioToggle.addEventListener('click', () => {
-        audio.checked = (!audio.checked);
-
-        ipcRenderer.invoke('settings:update', {
-            audio: audio.checked
-        });
-
-        toggleChange(audioToggle, audio.checked);
-        return updateAudio();
-    });
-
-    controlToggle.addEventListener('click', () => {
-        control.checked = (!control.checked);
-
-        ipcRenderer.invoke('settings:update', {
-            control: control.checked
-        });
-
-        return toggleChange(controlToggle, control.checked);
-    });
-
+    // Updates the audio track being sent to peers based on whether audio sharing is enabled
     async function updateAudio() {
         if (!active || !display) return;
 
@@ -220,23 +180,21 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    let oldPort = null;
-    port.addEventListener('focus', () => {
-        oldPort = port.value;
-    });
+    // Load the settings configuration from the main process
+    ipcRenderer.invoke('settings:load').then(settings => {
+        if (settings) {
+            magic.checked = (settings.magic ?? false);
+            audio.checked = (settings.audio ?? true);
+            control.checked = (settings.control ?? true);
+            port.value = (settings.port ?? 3000);
 
-    port.addEventListener('change', () => {
-        const portValue = parseInt(port.value);
-
-        if (portValue >= 1024 && portValue <= 65535) {
-            ipcRenderer.invoke('settings:update', {
-                port: portValue
-            });
-        } else {
-            port.value = oldPort ?? 3000;
+            toggleChange(audioToggle, audio.checked);
+            toggleChange(controlToggle, control.checked);
+            if (magic.checked) updateLabels(); // only need to update if magic mode enabled (since not default)
         }
     });
 
+    // Gets the display media (screen + audio) and prepares for sharing
     async function createDisplay() {
         const screen = await ipcRenderer.invoke('display');
 
@@ -264,6 +222,7 @@ window.addEventListener('DOMContentLoaded', () => {
         return display;
     }
 
+    // Updates the status text and color based on the current state
     function updateStatus(text, colorClass) {
         status.textContent = text;
         statusDot.classList.remove('bg-gray-400', 'bg-green-500', 'bg-yellow-500', 'bg-red-500');
@@ -271,9 +230,10 @@ window.addEventListener('DOMContentLoaded', () => {
         statusDot.classList.add(colorClass);
     }
 
+    // Approves a viewer's connection request and establishes a peer connection
     async function approve(sessionId, ip = null) {
         if (!active) return;
-        waiting = waiting.filter(s => s.sessionId !== sessionId);
+        waiting = waiting.filter(s => s.sessionId !== sessionId); // remove from wait list
 
         peers.set(sessionId, { pc: new RTCPeerConnection(), meta: { connectedAt: Date.now(), ip } });
         const pc = peers.get(sessionId)?.pc;
@@ -292,7 +252,7 @@ window.addEventListener('DOMContentLoaded', () => {
             try {
                 const message = JSON.parse(e.data);
 
-                if (message.name && message.method && control.checked) {
+                if (message.name && message.method && control.checked) { // only allow control if enabled
                     ipcRenderer.invoke(`nutjs:${message.name}`, message);
                 }
             } catch { };
@@ -306,6 +266,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
 
+        // Wait for connection to finish gathering ICE candidates
         await new Promise(resolve => {
             if (pc.iceGatheringState === "complete") {
                 resolve();
@@ -316,6 +277,7 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        // Send the session response with the offer for the viewer to connect
         await ipcRenderer.invoke('session:response', {
             sessionId,
             offer: {
@@ -330,9 +292,10 @@ window.addEventListener('DOMContentLoaded', () => {
         };
     };
 
+    // Declines a viewer's connection request
     async function decline(sessionId) {
         if (!active) return;
-        waiting = waiting.filter(s => s.sessionId !== sessionId);
+        waiting = waiting.filter(s => s.sessionId !== sessionId); // remove from wait list
 
         await ipcRenderer.invoke('session:response', {
             sessionId,
@@ -342,6 +305,7 @@ window.addEventListener('DOMContentLoaded', () => {
         return updateConnections();
     };
 
+    // Disconnects an active viewer connection and cleans up
     async function disconnect(sessionId) {
         const pc = peers.get(sessionId)?.pc;
         if (!pc) return;
@@ -353,6 +317,7 @@ window.addEventListener('DOMContentLoaded', () => {
         return updateConnections();
     };
 
+    // Updates the connections list in the UI based on current connections and requests
     function updateConnections() {
         const list = document.querySelector('.connections .connections_list');
         const none = document.querySelector('.connections .no_connections');
@@ -403,6 +368,7 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Handles incoming connection requests from viewers
     async function onRequest(event, { sessionId, ip = null }) {
         if (!active) return;
 
@@ -410,6 +376,7 @@ window.addEventListener('DOMContentLoaded', () => {
         document.querySelector('.tab-btn.connections').click();
     };
 
+    // Handles incoming session answers from viewers for connection
     async function onAnswer(event, { sessionId, answer }) {
         if (!active) return;
         if (!sessionId || !answer) return;
@@ -420,6 +387,7 @@ window.addEventListener('DOMContentLoaded', () => {
         return true;
     };
 
+    // Handles changes in the peer connection status
     async function statusChange(sessionId, state) {
         if (!active) return;
         if (["connected", "completed"].includes(state)) {
@@ -443,6 +411,60 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Magic button switch event
+    magicToggle.addEventListener('click', () => {
+        magic.checked = (!magic.checked);
+
+        ipcRenderer.invoke('settings:update', {
+            magic: magic.checked
+        });
+
+        return updateLabels();
+    });
+
+    // Audio toggle switch event
+    audioToggle.addEventListener('click', () => {
+        audio.checked = (!audio.checked);
+
+        ipcRenderer.invoke('settings:update', {
+            audio: audio.checked
+        });
+
+        toggleChange(audioToggle, audio.checked);
+        return updateAudio();
+    });
+
+    // Control toggle switch event
+    controlToggle.addEventListener('click', () => {
+        control.checked = (!control.checked);
+
+        ipcRenderer.invoke('settings:update', {
+            control: control.checked
+        });
+
+        return toggleChange(controlToggle, control.checked);
+    });
+
+    // Retain old port value in case of invalid input
+    let oldPort = null;
+    port.addEventListener('focus', () => {
+        oldPort = port.value;
+    });
+
+    // Port input change event
+    port.addEventListener('change', () => {
+        const portValue = parseInt(port.value);
+
+        if (portValue >= 1024 && portValue <= 65535) {
+            ipcRenderer.invoke('settings:update', {
+                port: portValue
+            });
+        } else {
+            port.value = oldPort ?? 3000;
+        }
+    });
+
+    document.querySelector('.tab-btn.connections').addEventListener('click', () => updateConnections());
     contextBridge.exposeInMainWorld('session', {
         start: async () => {
             updateStatus(getLabel('waiting'), 'bg-yellow-500');
