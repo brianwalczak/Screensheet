@@ -48,8 +48,11 @@ const labels = {
     }
 };
 
-let peers = new Map(); // stores active peer connections
-let waiting = []; // stores pending connection requests
+let peers = {
+    connected: new Map(), // stores active peer connections
+    pending: new Map() // stores pending connection requests
+};
+
 let active = false; // whether a session is currently active
 let display = null; // the current display media stream
 let screenSize = null; // the dimensions of `display` param
@@ -163,7 +166,7 @@ window.addEventListener('DOMContentLoaded', () => {
     async function updateAudio() {
         if (!active || !display) return;
 
-        for (let peer of peers.values()) {
+        for (let peer of peers.connected.values()) {
             let pc = peer?.pc;
 
             for (let sender of pc.getSenders()) {
@@ -233,10 +236,10 @@ window.addEventListener('DOMContentLoaded', () => {
     // Approves a viewer's connection request and establishes a peer connection
     async function approve(sessionId, ip = null) {
         if (!active) return;
-        waiting = waiting.filter(s => s.sessionId !== sessionId); // remove from wait list
+        peers.pending.delete(sessionId); // remove from wait list
 
-        peers.set(sessionId, { pc: new RTCPeerConnection(), meta: { connectedAt: Date.now(), ip } });
-        const pc = peers.get(sessionId)?.pc;
+        peers.connected.set(sessionId, { pc: new RTCPeerConnection(), meta: { connectedAt: Date.now(), ip } });
+        const pc = peers.connected.get(sessionId)?.pc;
 
         if (!display) {
             await createDisplay();
@@ -295,7 +298,7 @@ window.addEventListener('DOMContentLoaded', () => {
     // Declines a viewer's connection request
     async function decline(sessionId) {
         if (!active) return;
-        waiting = waiting.filter(s => s.sessionId !== sessionId); // remove from wait list
+        peers.pending.delete(sessionId); // remove from wait list
 
         await ipcRenderer.invoke('session:response', {
             sessionId,
@@ -307,11 +310,11 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Disconnects an active viewer connection and cleans up
     async function disconnect(sessionId) {
-        const pc = peers.get(sessionId)?.pc;
+        const pc = peers.connected.get(sessionId)?.pc;
         if (!pc) return;
 
         pc.close();
-        peers.delete(sessionId);
+        peers.connected.delete(sessionId);
         await ipcRenderer.invoke('session:disconnect', sessionId);
         
         return updateConnections();
@@ -323,7 +326,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const none = document.querySelector('.connections .no_connections');
         list.innerHTML = '';
 
-        if (peers.size === 0 && waiting.length === 0) {
+        if (peers.connected.size === 0 && peers.pending.size === 0) {
             none.classList.remove('hidden');
             list.classList.add('hidden');
             return;
@@ -332,12 +335,12 @@ window.addEventListener('DOMContentLoaded', () => {
             list.classList.remove('hidden');
         }
 
-        for (let { sessionId, ip } of waiting) {
+        for (let [sessionId, peer] of peers.pending.entries()) {
             const item = document.querySelector('.connection_items .pending_item').cloneNode(true);
-            item.querySelector('.item_name').textContent = (ip ?? sessionId);
+            item.querySelector('.item_name').textContent = (peer.ip ?? sessionId);
 
             item.querySelector('.item_accept').addEventListener('click', async () => {
-                return approve(sessionId, ip);
+                return approve(sessionId, peer.ip);
             });
 
             item.querySelector('.item_decline').addEventListener('click', async () => {
@@ -347,12 +350,12 @@ window.addEventListener('DOMContentLoaded', () => {
             list.appendChild(item);
         }
 
-        for (let [sessionId, peer] of peers.entries()) {
+        for (let [sessionId, peer] of peers.connected.entries()) {
             let pc = peer?.pc;
 
             if (["connected", "completed"].includes(pc.iceConnectionState)) {
                 const item = document.querySelector('.connection_items .active_item').cloneNode(true);
-                const metadata = peers.get(sessionId)?.meta;
+                const metadata = peers.connected.get(sessionId)?.meta;
 
                 item.querySelector('.item_name').textContent = (metadata?.ip ?? sessionId);
                 
@@ -372,7 +375,7 @@ window.addEventListener('DOMContentLoaded', () => {
     async function onRequest(event, { sessionId, ip = null }) {
         if (!active) return;
 
-        waiting.push({ sessionId, ip });
+        peers.pending.set(sessionId, { ip });
         document.querySelector('.tab-btn.connections').click();
     };
 
@@ -380,7 +383,7 @@ window.addEventListener('DOMContentLoaded', () => {
     async function onAnswer(event, { sessionId, answer }) {
         if (!active) return;
         if (!sessionId || !answer) return;
-        const pc = peers.get(sessionId)?.pc;
+        const pc = peers.connected.get(sessionId)?.pc;
         if (!pc) return;
 
         await pc.setRemoteDescription(answer);
@@ -404,7 +407,7 @@ window.addEventListener('DOMContentLoaded', () => {
             await disconnect(sessionId);
 
             let anyConnected = false;
-            for (let peer of peers.values()) {
+            for (let peer of peers.connected.values()) {
                 let pc = peer?.pc;
 
                 if (["connected", "completed"].includes(pc.iceConnectionState)) {
@@ -496,7 +499,7 @@ window.addEventListener('DOMContentLoaded', () => {
         },
         stop: async () => {
             if (!active) return;
-            for (let peer of peers.values()) {
+            for (let peer of peers.connected.values()) {
                 let pc = peer?.pc;
 
                 pc.getSenders().forEach(sender => {
@@ -508,7 +511,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 pc.close();
             }
 
-            peers.clear();
+            peers.connected.clear();
 
             await ipcRenderer.invoke('session:stop', input.value);
 
