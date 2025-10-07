@@ -204,7 +204,9 @@ window.addEventListener('DOMContentLoaded', () => {
     async function updateAudio() {
         if (!active || !display) return;
 
-        for (let pc of peers.values()) {
+        for (let peer of peers.values()) {
+            let pc = peer?.pc;
+
             for (let sender of pc.getSenders()) {
                 if (sender.track.kind === 'audio') {
                     if (audio.checked) {
@@ -274,9 +276,9 @@ window.addEventListener('DOMContentLoaded', () => {
         if (!active) return;
         waiting = waiting.filter(s => s.sessionId !== sessionId);
 
-        peers.set(sessionId, new RTCPeerConnection());
+        peers.set(sessionId, { pc: new RTCPeerConnection() });
         peerMetadata.set(sessionId, { connectedAt: Date.now(), ip });
-        const pc = peers.get(sessionId);
+        const pc = peers.get(sessionId)?.pc;
 
         if (!display) {
             await createDisplay();
@@ -344,7 +346,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     async function disconnect(sessionId) {
         if (!active) return;
-        const pc = peers.get(sessionId);
+        const pc = peers.get(sessionId)?.pc;
         if (!pc) return;
 
         pc.getSenders().forEach(sender => {
@@ -388,7 +390,9 @@ window.addEventListener('DOMContentLoaded', () => {
             list.appendChild(item);
         }
 
-        for (let [sessionId, pc] of peers.entries()) {
+        for (let [sessionId, peer] of peers.entries()) {
+            let pc = peer?.pc;
+
             if (["connected", "completed"].includes(pc.iceConnectionState)) {
                 const item = document.querySelector('.connection_items .active_item').cloneNode(true);
                 const metadata = peerMetadata.get(sessionId);
@@ -415,7 +419,7 @@ window.addEventListener('DOMContentLoaded', () => {
     async function onAnswer(event, { sessionId, answer }) {
         if (!active) return;
         if (!sessionId || !answer) return;
-        const pc = peers.get(sessionId);
+        const pc = peers.get(sessionId)?.pc;
         if (!pc) return;
 
         await pc.setRemoteDescription(answer);
@@ -430,7 +434,9 @@ window.addEventListener('DOMContentLoaded', () => {
             peers.delete(sessionId);
 
             let anyConnected = false;
-            for (let pc of peers.values()) {
+            for (let peer of peers.values()) {
+                let pc = peer?.pc;
+
                 if (["connected", "completed"].includes(pc.iceConnectionState)) {
                     anyConnected = true;
                     break;
@@ -465,7 +471,9 @@ window.addEventListener('DOMContentLoaded', () => {
         },
         stop: async () => {
             if (!active) return;
-            for (let pc of peers.values()) {
+            for (let peer of peers.values()) {
+                let pc = peer?.pc;
+
                 pc.getSenders().forEach(sender => {
                     if (sender.track) {
                         sender.track.stop();
