@@ -49,7 +49,6 @@ const labels = {
 };
 
 let peers = new Map();
-let peerMetadata = new Map();
 let waiting = [];
 let active = false;
 let display = null;
@@ -276,8 +275,7 @@ window.addEventListener('DOMContentLoaded', () => {
         if (!active) return;
         waiting = waiting.filter(s => s.sessionId !== sessionId);
 
-        peers.set(sessionId, { pc: new RTCPeerConnection() });
-        peerMetadata.set(sessionId, { connectedAt: Date.now(), ip });
+        peers.set(sessionId, { pc: new RTCPeerConnection(), meta: { connectedAt: Date.now(), ip } });
         const pc = peers.get(sessionId)?.pc;
 
         if (!display) {
@@ -395,7 +393,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
             if (["connected", "completed"].includes(pc.iceConnectionState)) {
                 const item = document.querySelector('.connection_items .active_item').cloneNode(true);
-                const metadata = peerMetadata.get(sessionId);
+                const metadata = peers.get(sessionId)?.meta;
 
                 item.querySelector('.item_name').textContent = (metadata?.ip ?? sessionId);
                 item.querySelector('.item_text').textContent = (metadata?.connectedAt ? `Connected ${Math.floor((Date.now() - metadata.connectedAt) / 60000)}m ago` : 'Viewing your screen');
