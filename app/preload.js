@@ -121,18 +121,18 @@ window.addEventListener('DOMContentLoaded', () => {
         copy.textContent = getLabel('copyBtn');
         status.textContent = findMatching(status.textContent, (magic.checked ? 'normal' : 'magic')) ?? status.textContent;
 
-        document.querySelector('.settings span[for="audio"]').textContent = getLabel('audioSharing');
-        document.querySelector('.settings span[for="control"]').textContent = getLabel('remoteControl');
-        document.querySelector('.settings span[for="port"]').textContent = getLabel('serverPort');
+        document.querySelector('.settings-div span[for="audio"]').textContent = getLabel('audioSharing');
+        document.querySelector('.settings-div span[for="control"]').textContent = getLabel('remoteControl');
+        document.querySelector('.settings-div span[for="port"]').textContent = getLabel('serverPort');
 
         if (magic.checked) {
             document.body.classList.remove('bg-white');
             document.body.classList.add('bg-purple-100');
 
-            document.querySelector('.settings').classList.remove('bg-gray-50');
-            document.querySelector('.settings').classList.remove('border-gray-200');
-            document.querySelector('.settings').classList.add('bg-purple-50');
-            document.querySelector('.settings').classList.add('border-purple-200');
+            document.querySelector('.settings-div').classList.remove('bg-gray-50');
+            document.querySelector('.settings-div').classList.remove('border-gray-200');
+            document.querySelector('.settings-div').classList.add('bg-purple-50');
+            document.querySelector('.settings-div').classList.add('border-purple-200');
 
             magicToggle.classList.remove('bg-white');
             magicToggle.classList.remove('hover:bg-gray-100');
@@ -142,10 +142,10 @@ window.addEventListener('DOMContentLoaded', () => {
             document.body.classList.remove('bg-purple-100');
             document.body.classList.add('bg-white');
 
-            document.querySelector('.settings').classList.remove('bg-purple-50');
-            document.querySelector('.settings').classList.remove('border-purple-200');
-            document.querySelector('.settings').classList.add('bg-gray-50');
-            document.querySelector('.settings').classList.add('border-gray-200');
+            document.querySelector('.settings-div').classList.remove('bg-purple-50');
+            document.querySelector('.settings-div').classList.remove('border-purple-200');
+            document.querySelector('.settings-div').classList.add('bg-gray-50');
+            document.querySelector('.settings-div').classList.add('border-gray-200');
 
             magicToggle.classList.remove('bg-purple-200');
             magicToggle.classList.remove('hover:bg-purple-300');
