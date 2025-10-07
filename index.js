@@ -1,17 +1,15 @@
 const { screen, mouse, keyboard, Key, Button, Point } = require("@nut-tree-fork/nut-js");
 const { app: electron, BrowserWindow, ipcMain, desktopCapturer } = require('electron');
-const sock = require('socket.io');
-const http = require('http');
 const keymaps = require('./keymaps.js');
-const { v4: uuidv4 } = require('uuid');
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const app = express();
+
+const http = require('http').createServer(app);
+const io = require('socket.io')(http);
 
 const settingsPath = path.join((electron.isPackaged ? electron.getPath('userData') : __dirname), 'settings.json');
-const app = express();
-const httpServer = http.createServer(app);
-const io = new sock.Server(httpServer);
 let activeCode = null;
 let settings;
 let window;
@@ -25,7 +23,7 @@ async function newServer(port = (settings?.port ?? 3000)) {
         await server.close();
     }
 
-    server = httpServer.listen(port, () => {
+    server = http.listen(port, () => {
         console.log(`Server has been ${restart ? 'restarted' : 'started'} on http://localhost:${port}.`);
     });
 }
@@ -54,6 +52,23 @@ function createWindow() {
     });
 }
 
+electron.whenReady().then(() => {
+    createWindow();
+
+    electron.on('activate', () => {
+        if (BrowserWindow.getAllWindows().length === 0) {
+            createWindow(); // create window if none are open (macos/darwin)
+        }
+    });
+});
+
+electron.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') {
+        electron.quit();
+    }
+});
+
+// Returns the available display sources and their dimensions
 ipcMain.handle('display', async (event) => {
     try {
         const display = await desktopCapturer.getSources({ types: ['screen'] });
@@ -66,6 +81,9 @@ ipcMain.handle('display', async (event) => {
     }
 });
 
+// -- Session Management -- //
+
+// Start a new session and generate a new session code
 ipcMain.handle('session:start', async (event) => {
     const code = Math.random().toString(36).substring(2, 10).toUpperCase();
     activeCode = code;
@@ -73,27 +91,34 @@ ipcMain.handle('session:start', async (event) => {
     return code;
 });
 
-ipcMain.handle('session:stop', async (event, code) => {
+// Stop the current session (invalidate the session code)
+ipcMain.handle('session:stop', async (event) => {
     activeCode = null;
+
     return true;
 });
 
+// Sends session responses from the host to the viewer (accept or decline)
 ipcMain.handle('session:response', async (event, { sessionId, offer, declined }) => {
     if (sessionId) {
-        if (declined) {
-            io.to(sessionId).emit('session:offer', { declined: true });
-        } else if (offer) {
+        if (offer && !declined) { // accept
             io.to(sessionId).emit('session:offer', { offer });
+        } else { // decline
+            io.to(sessionId).emit('session:offer', { declined: true });
         }
     }
 });
 
+// Sends a disconnect signal to the viewer to end the session
 ipcMain.handle('session:disconnect', async (event, sessionId) => {
     if (sessionId) {
         io.to(sessionId).emit('session:disconnect');
     }
 });
 
+// -- Remote Control -- //
+
+// Handles mouse events, repeated by the host from viewer input
 ipcMain.handle('nutjs:mouse', async (event, data) => {
     try {
         const { x, y, method } = data;
@@ -106,6 +131,7 @@ ipcMain.handle('nutjs:mouse', async (event, data) => {
     } catch { };
 });
 
+// Handles keyboard events, repeated by the host from viewer input
 ipcMain.handle('nutjs:keyboard', async (event, data) => {
     try {
         const { method, event } = data;
@@ -124,11 +150,14 @@ ipcMain.handle('nutjs:keyboard', async (event, data) => {
     } catch { };
 });
 
+// -- Settings Management -- //
+
+// Load settings from file and return to host
 ipcMain.handle('settings:load', async () => {
     return settings;
 });
 
-
+// Update settings file with modified settings from host
 ipcMain.handle('settings:update', async (event, modified) => {
     try {
         const updated = { ...settings, ...modified };
@@ -146,28 +175,15 @@ ipcMain.handle('settings:update', async (event, modified) => {
     }
 });
 
-electron.whenReady().then(() => {
-    createWindow();
-
-    electron.on('activate', () => {
-        if (BrowserWindow.getAllWindows().length === 0) {
-            createWindow(); // create window if none are open (macos/darwin)
-        }
-    });
-});
-
-electron.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') {
-        electron.quit();
-    }
-});
-
 // -- Express Server -- //
+
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Handle new viewer connections to the page
 io.on('connection', (socket) => {
     const sessionId = socket.id;
 
+    // Repeat session requests from viewers trying to connect to the host
     socket.on('session:request', async (data) => {
         const code = data.code.toUpperCase();
         if (!activeCode || code !== activeCode) return socket.emit('error', 404);
@@ -176,6 +192,7 @@ io.on('connection', (socket) => {
         window.webContents.send('session:request', { sessionId, ip });
     });
 
+    // Repeat session answers from viewer to host when establishing a connection (AFTER approval)
     socket.on('session:answer', (data) => {
         const { code, answer } = data;
         if (!activeCode || code !== activeCode) return socket.emit('error', 404);
