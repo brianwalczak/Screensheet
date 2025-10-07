@@ -5,6 +5,8 @@ const video_container = document.querySelector('#video-container');
 const error = document.querySelector('#error-text');
 const video = document.querySelector('#video-container video');
 const pc = new RTCPeerConnection();
+const socket = io();
+let activeCode = null;
 let screenSize;
 let channel;
 
@@ -29,55 +31,39 @@ function showError(message) {
     error_container.classList.remove('hidden');
 }
 
-async function connection() {
-    const code = input.value.trim();
-
-    if (code.length !== 8) {
-        showError('Please enter a valid 8-digit connection code.');
-        return;
+function errorCode(code) {
+    switch (code) {
+        case 404:
+            showError('It looks like this connection code is invalid.');
+            break;
+        case 403:
+            showError('The host declined your connection request.');
+            break;
+        default:
+            showError('An unknown error occurred. Please try again.');
+            break;
     }
 
-    connect.textContent = 'Requesting approval...';
-    connect.disabled = true;
+    connect.textContent = 'Connect';
+    connect.disabled = false;
+    activeCode = null;
+}
 
-    const req = await fetch(`/session/${input.value}`);
-    const res = await req.json();
+socket.on('error', (code) => { errorCode(code); });
+socket.on('session:offer', async (data) => {
+    if (data.declined) return errorCode(403);
+    await pc.setRemoteDescription(data.offer);
 
-    if (res.error) {
-        switch (res.code) {
-            case 404:
-                showError('It looks like this connection code is invalid.');
-                break;
-            case 408:
-                showError('Connection was closed unexpectedly.');
-                break;
-            case 403:
-                showError('The host declined your connection request.');
-                break;
-            default:
-                showError('An unknown error occurred. Please try again.');
-                break;
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+
+    socket.emit('session:answer', {
+        code: activeCode,
+        answer: {
+            type: pc.localDescription.type,
+            sdp: pc.localDescription.sdp
         }
-    } else {
-        await pc.setRemoteDescription(res.offer);
-
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-
-        await fetch(`/session/${input.value}/answer`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                id: res.id,
-                answer: {
-                    type: pc.localDescription.type,
-                    sdp: pc.localDescription.sdp
-                }
-            })
-        });
-    }
+    });
 
     pc.ondatachannel = (event) => {
         event.channel.onmessage = (e) => {
@@ -94,6 +80,21 @@ async function connection() {
 
     connect.textContent = 'Connect';
     connect.disabled = false;
+});
+
+async function connection() {
+    const code = input.value.trim();
+
+    if (code.length !== 8) {
+        showError('Please enter a valid 8-digit connection code.');
+        return;
+    }
+
+    activeCode = code;
+    connect.textContent = 'Requesting approval...';
+    connect.disabled = true;
+
+    socket.emit('session:request', { code: activeCode });
 }
 
 // -- Handle Keyboard + Mouse -- //
