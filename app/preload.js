@@ -387,6 +387,14 @@ window.addEventListener('DOMContentLoaded', () => {
         return true;
     };
 
+    // Handles unexpected disconnections from viewers
+    async function onDisconnect(event, sessionId) {
+        if (!active) return;
+        
+        await statusChange(sessionId, "closed");
+        return updateConnections();
+    };
+
     // Handles changes in the peer connection status
     async function statusChange(sessionId, state) {
         if (!active) return;
@@ -481,6 +489,7 @@ window.addEventListener('DOMContentLoaded', () => {
             container.classList.remove('hidden');
             warning.classList.remove('hidden');
 
+            ipcRenderer.on('session:disconnect', onDisconnect);
             ipcRenderer.on('session:request', onRequest);
             ipcRenderer.on('session:answer', onAnswer);
             active = true;
@@ -512,6 +521,7 @@ window.addEventListener('DOMContentLoaded', () => {
             container.classList.add('hidden');
             warning.classList.add('hidden');
 
+            ipcRenderer.removeListener('session:disconnect', onDisconnect);
             ipcRenderer.removeListener('session:request', onRequest);
             ipcRenderer.removeListener('session:answer', onAnswer);
             active = false;

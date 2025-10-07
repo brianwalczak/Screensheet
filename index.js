@@ -195,6 +195,11 @@ io.on('connection', (socket) => {
     socket.on('session:answer', (answer) => {
         window.webContents.send('session:answer', { sessionId, answer });
     });
+
+    // Remove peer connection when viewer disconnects
+    socket.on('disconnect', () => {
+        window.webContents.send('session:disconnect', sessionId);
+    });
 });
 
 (async () => {
