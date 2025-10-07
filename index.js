@@ -88,6 +88,12 @@ ipcMain.handle('session:response', async (event, { sessionId, offer, declined })
     }
 });
 
+ipcMain.handle('session:disconnect', async (event, sessionId) => {
+    if (sessionId) {
+        io.to(sessionId).emit('session:disconnect');
+    }
+});
+
 ipcMain.handle('nutjs:mouse', async (event, data) => {
     try {
         const { x, y, method } = data;
@@ -173,7 +179,7 @@ io.on('connection', (socket) => {
     socket.on('session:answer', (data) => {
         const { code, answer } = data;
         if (!activeCode || code !== activeCode) return socket.emit('error', 404);
-        
+
         window.webContents.send('session:answer', { sessionId, answer });
     });
 });

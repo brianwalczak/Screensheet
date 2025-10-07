@@ -324,8 +324,8 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        pc.onconnectionstatechange = () => {
-            statusChange(sessionId, pc.iceConnectionState);
+        pc.onconnectionstatechange = async () => {
+            await statusChange(sessionId, pc.iceConnectionState);
             return updateConnections();
         };
     };
@@ -342,13 +342,14 @@ window.addEventListener('DOMContentLoaded', () => {
         return updateConnections();
     };
 
-    function disconnect(sessionId) {
+    async function disconnect(sessionId) {
         const pc = peers.get(sessionId)?.pc;
         if (!pc) return;
 
         pc.close();
         peers.delete(sessionId);
-
+        await ipcRenderer.invoke('session:disconnect', sessionId);
+        
         return updateConnections();
     };
 
@@ -366,7 +367,7 @@ window.addEventListener('DOMContentLoaded', () => {
             list.classList.remove('hidden');
         }
 
-        for (let { sessionId, ip, remaining } of waiting) {
+        for (let { sessionId, ip } of waiting) {
             const item = document.querySelector('.connection_items .pending_item').cloneNode(true);
             item.querySelector('.item_name').textContent = (ip ?? sessionId);
 
@@ -419,12 +420,12 @@ window.addEventListener('DOMContentLoaded', () => {
         return true;
     };
 
-    function statusChange(sessionId, state) {
+    async function statusChange(sessionId, state) {
         if (!active) return;
         if (["connected", "completed"].includes(state)) {
             updateStatus(getLabel('connected'), 'bg-green-500');
         } else if (["disconnected", "failed", "closed"].includes(state)) {
-            disconnect(sessionId);
+            await disconnect(sessionId);
 
             let anyConnected = false;
             for (let peer of peers.values()) {

@@ -4,16 +4,11 @@ const error_container = document.querySelector('#error-message');
 const video_container = document.querySelector('#video-container');
 const error = document.querySelector('#error-text');
 const video = document.querySelector('#video-container video');
-const pc = new RTCPeerConnection();
+let pc = new RTCPeerConnection();
 const socket = io();
 let activeCode = null;
 let screenSize;
 let channel;
-
-pc.ontrack = (event) => {
-    video_container.classList.remove('hidden');
-    video.srcObject = event.streams[0];
-};
 
 input.addEventListener('input', (e) => {
     e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -39,6 +34,9 @@ function errorCode(code) {
         case 403:
             showError('The host declined your connection request.');
             break;
+        case 410:
+            showError('You have been disconnected by the host.');
+            break;
         default:
             showError('An unknown error occurred. Please try again.');
             break;
@@ -52,6 +50,12 @@ function errorCode(code) {
 socket.on('error', (code) => { errorCode(code); });
 socket.on('session:offer', async (data) => {
     if (data.declined) return errorCode(403);
+
+    pc.ontrack = (event) => {
+        video_container.classList.remove('hidden');
+        video.srcObject = event.streams[0];
+    };
+
     await pc.setRemoteDescription(data.offer);
 
     const answer = await pc.createAnswer();
@@ -80,6 +84,18 @@ socket.on('session:offer', async (data) => {
 
     connect.textContent = 'Connect';
     connect.disabled = false;
+});
+
+socket.on('session:disconnect', () => {
+    video_container.classList.add('hidden');
+    input.value = '';
+    screenSize = null;
+    channel = null;
+    activeCode = null;
+
+    pc.close();
+    pc = new RTCPeerConnection();
+    return errorCode(410);
 });
 
 async function connection() {
