@@ -184,8 +184,7 @@ io.on('connection', (socket) => {
     const sessionId = socket.id;
 
     // Repeat session requests from viewers trying to connect to the host
-    socket.on('session:request', async (data) => {
-        const code = data.code.toUpperCase();
+    socket.on('session:request', async (code) => {
         if (!activeCode || code !== activeCode) return socket.emit('error', 404);
         const ip = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address || null;
 

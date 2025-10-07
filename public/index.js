@@ -102,7 +102,7 @@ async function connection() {
 
     connect.textContent = 'Requesting approval...';
     connect.disabled = true;
-    socket.emit('session:request', { code });
+    socket.emit('session:request', code);
 }
 
 // -- Handle Keyboard + Mouse -- //
