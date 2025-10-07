@@ -1,5 +1,7 @@
 const { screen, mouse, keyboard, Key, Button, Point } = require("@nut-tree-fork/nut-js");
 const { app: electron, BrowserWindow, ipcMain, desktopCapturer } = require('electron');
+const sock = require('socket.io');
+const http = require('http');
 const keymaps = require('./keymaps.js');
 const { v4: uuidv4 } = require('uuid');
 const express = require('express');
@@ -8,8 +10,9 @@ const fs = require('fs');
 
 const settingsPath = path.join((electron.isPackaged ? electron.getPath('userData') : __dirname), 'settings.json');
 const app = express();
+const httpServer = http.createServer(app);
+const io = new sock.Server(httpServer);
 let activeCode = null;
-const sessions = new Map();
 let settings;
 let window;
 let server;
@@ -22,7 +25,7 @@ async function newServer(port = (settings?.port ?? 3000)) {
         await server.close();
     }
 
-    server = app.listen(port, () => {
+    server = httpServer.listen(port, () => {
         console.log(`Server has been ${restart ? 'restarted' : 'started'} on http://localhost:${port}.`);
     });
 }
@@ -78,16 +81,10 @@ ipcMain.handle('session:stop', async (event, code) => {
 ipcMain.handle('session:response', async (event, { sessionId, offer, declined }) => {
     if (sessionId) {
         if (declined) {
-            sessions.set(sessionId, { declined: true });
+            io.to(sessionId).emit('session:offer', { declined: true });
         } else if (offer) {
-            sessions.set(sessionId, { offer, answer: null });
+            io.to(sessionId).emit('session:offer', { offer });
         }
-    }
-});
-
-ipcMain.handle('session:disconnect', async (event, sessionId) => {
-    if (sessionId && sessions.has(sessionId)) {
-        sessions.delete(sessionId);
     }
 });
 
@@ -162,48 +159,23 @@ electron.on('window-all-closed', () => {
 // -- Express Server -- //
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.get('/session/:code', async (req, res) => {
-    const code = req.params.code.toUpperCase();
-    if (!activeCode || code !== activeCode) return res.status(404).json({ error: true, code: 404 });
-    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || null;
+io.on('connection', (socket) => {
+    const sessionId = socket.id;
 
-    const sessionId = uuidv4();
-    window.webContents.send('session:request', { sessionId, ip });
+    socket.on('session:request', async (data) => {
+        const code = data.code.toUpperCase();
+        if (!activeCode || code !== activeCode) return socket.emit('error', 404);
+        const ip = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address || null;
 
-    let attempts = 0;
-    const maxAttempts = 100;
+        window.webContents.send('session:request', { sessionId, ip });
+    });
 
-    while (attempts < maxAttempts) {
-        const session = sessions.get(sessionId);
-
-        if (session && session.declined) {
-            sessions.delete(sessionId);
-            return res.status(403).json({ error: true, code: 403 });
-        }
-
-        if (session && session.offer) {
-            return res.json({ success: true, id: sessionId, offer: session.offer });
-        }
-
-        await new Promise(resolve => setTimeout(resolve, 100));
-        attempts++;
-    }
-
-    return res.status(408).json({ error: true, code: 408 });
-});
-
-app.post('/session/:code/answer', express.json(), (req, res) => {
-    const code = req.params.code.toUpperCase();
-    const sessionId = req.body?.id;
-    if (!activeCode || code !== activeCode || !sessionId) return res.status(404).json({ error: true, code: 404 });
-
-    const session = sessions.get(sessionId);
-    if (!session || !session.offer || session.answer) return res.status(404).json({ error: true, code: 404 });
-
-    sessions.set(sessionId, { ...session, answer: req.body?.answer });
-    window.webContents.send('session:answer', { sessionId, answer: req.body?.answer });
-
-    res.json({ success: true });
+    socket.on('session:answer', (data) => {
+        const { code, answer } = data;
+        if (!activeCode || code !== activeCode) return socket.emit('error', 404);
+        
+        window.webContents.send('session:answer', { sessionId, answer });
+    });
 });
 
 (async () => {

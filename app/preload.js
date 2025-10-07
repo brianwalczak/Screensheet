@@ -356,7 +356,6 @@ window.addEventListener('DOMContentLoaded', () => {
         pc.close();
         peers.delete(sessionId);
 
-        await ipcRenderer.invoke('session:disconnect', sessionId);
         return updateConnections();
     };
 
@@ -377,17 +376,6 @@ window.addEventListener('DOMContentLoaded', () => {
         for (let { sessionId, ip, remaining } of waiting) {
             const item = document.querySelector('.connection_items .pending_item').cloneNode(true);
             item.querySelector('.item_name').textContent = (ip ?? sessionId);
-
-            let timeLeft = Math.floor((remaining - Date.now()) / 1000);
-            item.querySelector('.item_text').textContent = `Approve within ${timeLeft} seconds.`;
-            const timer = setInterval(() => {
-                timeLeft--;
-                item.querySelector('.item_text').textContent = `Approve within ${timeLeft} seconds.`;
-
-                if (timeLeft <= 0) {
-                    clearInterval(timer);
-                }
-            }, 1000);
 
             item.querySelector('.item_accept').addEventListener('click', async () => {
                 return approve(sessionId, ip);
@@ -420,14 +408,8 @@ window.addEventListener('DOMContentLoaded', () => {
     async function onRequest(event, { sessionId, ip = null }) {
         if (!active) return;
 
-        waiting.push({ sessionId, ip, remaining: (Date.now() + 9000) });
+        waiting.push({ sessionId, ip });
         document.querySelector('.tab-btn.connections').click();
-
-        setTimeout(async () => {
-            if (waiting.find(s => s.sessionId === sessionId)) {
-                await decline(sessionId);
-            }
-        }, 9000); // using 9000 for small delay
     };
 
     async function onAnswer(event, { sessionId, answer }) {
