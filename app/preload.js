@@ -342,16 +342,9 @@ window.addEventListener('DOMContentLoaded', () => {
         return updateConnections();
     };
 
-    async function disconnect(sessionId) {
-        if (!active) return;
+    function disconnect(sessionId) {
         const pc = peers.get(sessionId)?.pc;
         if (!pc) return;
-
-        pc.getSenders().forEach(sender => {
-            if (sender.track) {
-                sender.track.stop();
-            }
-        });
 
         pc.close();
         peers.delete(sessionId);
@@ -431,7 +424,7 @@ window.addEventListener('DOMContentLoaded', () => {
         if (["connected", "completed"].includes(state)) {
             updateStatus(getLabel('connected'), 'bg-green-500');
         } else if (["disconnected", "failed", "closed"].includes(state)) {
-            peers.delete(sessionId);
+            disconnect(sessionId);
 
             let anyConnected = false;
             for (let peer of peers.values()) {
