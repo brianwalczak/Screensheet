@@ -193,10 +193,7 @@ io.on('connection', (socket) => {
     });
 
     // Repeat session answers from viewer to host when establishing a connection (AFTER approval)
-    socket.on('session:answer', (data) => {
-        const { code, answer } = data;
-        if (!activeCode || code !== activeCode) return socket.emit('error', 404);
-
+    socket.on('session:answer', (answer) => {
         window.webContents.send('session:answer', { sessionId, answer });
     });
 });

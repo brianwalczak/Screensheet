@@ -6,7 +6,6 @@ const error = document.querySelector('#error-text');
 const video = document.querySelector('#video-container video');
 let pc = new RTCPeerConnection();
 const socket = io();
-let activeCode = null;
 let screenSize;
 let channel;
 
@@ -44,7 +43,6 @@ function errorCode(code) {
 
     connect.textContent = 'Connect';
     connect.disabled = false;
-    activeCode = null;
 }
 
 socket.on('error', (code) => { errorCode(code); });
@@ -62,11 +60,8 @@ socket.on('session:offer', async (data) => {
     await pc.setLocalDescription(answer);
 
     socket.emit('session:answer', {
-        code: activeCode,
-        answer: {
-            type: pc.localDescription.type,
-            sdp: pc.localDescription.sdp
-        }
+        type: pc.localDescription.type,
+        sdp: pc.localDescription.sdp
     });
 
     pc.ondatachannel = (event) => {
@@ -91,7 +86,6 @@ socket.on('session:disconnect', () => {
     input.value = '';
     screenSize = null;
     channel = null;
-    activeCode = null;
 
     pc.close();
     pc = new RTCPeerConnection();
@@ -106,11 +100,9 @@ async function connection() {
         return;
     }
 
-    activeCode = code;
     connect.textContent = 'Requesting approval...';
     connect.disabled = true;
-
-    socket.emit('session:request', { code: activeCode });
+    socket.emit('session:request', { code });
 }
 
 // -- Handle Keyboard + Mouse -- //
