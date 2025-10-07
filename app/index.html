@@ -17,19 +17,21 @@
       -moz-appearance: textfield;
     }
 
-    body::-webkit-scrollbar,
-    main::-webkit-scrollbar {
+    .tab::-webkit-scrollbar {
       display: none;
     }
 
-    body,
-    main {
+    .tab {
       scrollbar-width: none;
       -ms-overflow-style: none;
     }
 
     main {
-      overflow: auto;
+      overflow: hidden;
+    }
+
+    .tab {
+      overflow-y: auto;
     }
   </style>
 </head>
@@ -60,7 +62,24 @@
       <p class="description text-gray-600 text-sm">Share your desktop remotely in seconds</p>
     </div>
 
-    <div class="p-8 pt-0">
+    <div class="px-8 mb-6">
+      <div class="flex border-b border-gray-200">
+        <button onclick="switchTab('home')"
+          class="home tab-btn cursor-pointer flex-1 py-3 text-sm font-medium text-gray-900 border-b-2 border-gray-900 transition-colors">
+          Home
+        </button>
+        <button onclick="switchTab('connections')"
+          class="connections tab-btn cursor-pointer flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 border-b-2 border-transparent transition-colors">
+          Connections
+        </button>
+        <button onclick="switchTab('settings')"
+          class="settings tab-btn cursor-pointer flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 border-b-2 border-transparent transition-colors">
+          Settings
+        </button>
+      </div>
+    </div>
+
+    <div class="home tab p-8 pt-0">
       <div class="flex items-center justify-center mb-6">
         <div class="flex items-center space-x-2 text-sm">
           <div id="status_dot" class="w-2 h-2 rounded-full bg-gray-400"></div>
@@ -98,14 +117,16 @@
 
           <div>
             <p class="warning_title text-red-900 font-medium text-sm">Security Warning</p>
-            <p class="warning_description text-red-800 text-sm mt-1"><span class="font-semibold">Never</span> share this code with anyone
+            <p class="warning_description text-red-800 text-sm mt-1"><span class="font-semibold">Never</span> share this
+              code with anyone
               you don't trust. It grants full device access.</p>
           </div>
         </div>
       </div>
 
       <div class="space-y-3 mt-[-12px]">
-        <div class="settings bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3 transition-colors duration-500 ease-in-out">
+        <div
+          class="settings bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3 transition-colors duration-500 ease-in-out">
           <div class="flex items-center justify-between">
             <div class="flex items-center space-x-3">
               <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -158,11 +179,85 @@
       </div>
     </div>
 
-    <div class="text-center mt-auto pb-6">
+    <div class="connections tab p-8 pt-0 hidden">
+      <div class="no_connections text-center text-gray-500">
+        <p class="text-sm">No active connections.</p>
+      </div>
+
+      <div class="connections_list space-y-4 hidden"></div>
+      <div class="connection_items hidden">
+        <!-- Active Connection -->
+        <div class="active_item bg-white border border-gray-200 rounded-lg p-4">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center space-x-3">
+              <div class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                </svg>
+              </div>
+              <div>
+                <p class="item_name text-sm font-medium text-gray-900">0.0.0.0</p>
+                <p class="item_text text-xs text-gray-500">Connected 0m ago</p>
+              </div>
+            </div>
+            <div class="flex items-center space-x-2">
+              <span class="w-2 h-2 bg-green-500 rounded-full"></span>
+              <span class="text-xs text-green-600 font-medium">Active</span>
+            </div>
+          </div>
+          <button
+            class="item_disconnect w-full cursor-pointer bg-red-50 hover:bg-red-100 text-red-700 font-medium py-2 rounded-lg transition-colors text-sm">
+            Disconnect
+          </button>
+        </div>
+
+        <!-- Pending Connection -->
+        <div class="pending_item bg-white border border-gray-200 rounded-lg p-4">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center space-x-3">
+              <div class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                </svg>
+              </div>
+              <div>
+                <p class="item_name text-sm font-medium text-gray-900">0.0.0.0</p>
+                <p class="item_text text-xs text-gray-500">Accept within 0 seconds.</p>
+              </div>
+            </div>
+            <div class="flex items-center space-x-2">
+              <span class="w-2 h-2 bg-yellow-500 rounded-full"></span>
+              <span class="text-xs text-yellow-600 font-medium">Pending</span>
+            </div>
+          </div>
+          <div class="flex space-x-2">
+            <button
+              class="item_accept flex-1 cursor-pointer bg-gray-900 hover:bg-gray-800 text-white font-medium py-2 rounded-lg transition-colors text-sm">
+              Accept
+            </button>
+            <button
+              class="item_decline flex-1 cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 rounded-lg transition-colors text-sm">
+              Decline
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings tab p-8 pt-0 hidden">
+      <div class="text-center text-gray-500">
+        <p class="text-sm">No settings yet.</p>
+      </div>
+    </div>
+
+    <div class="text-center mt-auto py-3">
       <p class="text-gray-500 text-xs">© 2025 Brian Walczak</p>
     </div>
     </div>
   </main>
+  <script src="tab.js" type="text/javascript"></script>
 </body>
 
 </html>

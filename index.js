@@ -30,7 +30,7 @@ async function newServer(port = (settings?.port ?? 3000)) {
 function createWindow() {
     window = new BrowserWindow({
         width: 400,
-        height: 550,
+        height: 590,
         resizable: false,
         webPreferences: {
             nodeIntegration: true,
@@ -75,9 +75,19 @@ ipcMain.handle('session:stop', async (event, code) => {
     return true;
 });
 
-ipcMain.handle('session:response', async (event, { sessionId, offer }) => {
-    if (sessionId && offer) {
-        sessions.set(sessionId, { offer, answer: null });
+ipcMain.handle('session:response', async (event, { sessionId, offer, declined }) => {
+    if (sessionId) {
+        if (declined) {
+            sessions.set(sessionId, { declined: true });
+        } else if (offer) {
+            sessions.set(sessionId, { offer, answer: null });
+        }
+    }
+});
+
+ipcMain.handle('session:disconnect', async (event, sessionId) => {
+    if (sessionId && sessions.has(sessionId)) {
+        sessions.delete(sessionId);
     }
 });
 
@@ -155,15 +165,21 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.get('/session/:code', async (req, res) => {
     const code = req.params.code.toUpperCase();
     if (!activeCode || code !== activeCode) return res.status(404).json({ error: true, code: 404 });
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || null;
 
     const sessionId = uuidv4();
-    window.webContents.send('session:request', { sessionId });
+    window.webContents.send('session:request', { sessionId, ip });
 
     let attempts = 0;
     const maxAttempts = 100;
 
     while (attempts < maxAttempts) {
         const session = sessions.get(sessionId);
+
+        if (session && session.declined) {
+            sessions.delete(sessionId);
+            return res.status(403).json({ error: true, code: 403 });
+        }
 
         if (session && session.offer) {
             return res.json({ success: true, id: sessionId, offer: session.offer });

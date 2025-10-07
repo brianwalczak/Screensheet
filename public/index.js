@@ -37,7 +37,7 @@ async function connection() {
         return;
     }
 
-    connect.textContent = 'Connecting...';
+    connect.textContent = 'Requesting approval...';
     connect.disabled = true;
 
     const req = await fetch(`/session/${input.value}`);
@@ -50,6 +50,9 @@ async function connection() {
                 break;
             case 408:
                 showError('Connection was closed unexpectedly.');
+                break;
+            case 403:
+                showError('The host declined your connection request.');
                 break;
             default:
                 showError('An unknown error occurred. Please try again.');

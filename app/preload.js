@@ -49,6 +49,8 @@ const labels = {
 };
 
 let peers = new Map();
+let peerMetadata = new Map();
+let waiting = [];
 let active = false;
 let display = null;
 let screenSize = null;
@@ -162,9 +164,11 @@ window.addEventListener('DOMContentLoaded', () => {
 
             toggleChange(audioToggle, audio.checked);
             toggleChange(controlToggle, control.checked);
-            if(magic.checked) updateLabels();
+            if (magic.checked) updateLabels();
         }
     });
+
+    document.querySelector('.tab-btn.connections').addEventListener('click', updateConnections);
 
     magicToggle.addEventListener('click', () => {
         magic.checked = (!magic.checked);
@@ -266,9 +270,12 @@ window.addEventListener('DOMContentLoaded', () => {
         statusDot.classList.add(colorClass);
     }
 
-    async function onRequest(event, { sessionId }) {
+    async function approve(sessionId, ip = null) {
         if (!active) return;
+        waiting = waiting.filter(s => s.sessionId !== sessionId);
+
         peers.set(sessionId, new RTCPeerConnection());
+        peerMetadata.set(sessionId, { connectedAt: Date.now(), ip });
         const pc = peers.get(sessionId);
 
         if (!display) {
@@ -317,9 +324,111 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        pc.onconnectionstatechange = () => statusChange(sessionId, pc.iceConnectionState);
-        return pc;
+        pc.onconnectionstatechange = () => {
+            statusChange(sessionId, pc.iceConnectionState);
+            return updateConnections();
+        };
+    };
+
+    async function decline(sessionId) {
+        if (!active) return;
+        waiting = waiting.filter(s => s.sessionId !== sessionId);
+
+        await ipcRenderer.invoke('session:response', {
+            sessionId,
+            declined: true
+        });
+
+        return updateConnections();
+    };
+
+    async function disconnect(sessionId) {
+        if (!active) return;
+        const pc = peers.get(sessionId);
+        if (!pc) return;
+
+        pc.getSenders().forEach(sender => {
+            if (sender.track) {
+                sender.track.stop();
+            }
+        });
+
+        pc.close();
+        peers.delete(sessionId);
+
+        await ipcRenderer.invoke('session:disconnect', sessionId);
+        return updateConnections();
+    };
+
+    function updateConnections() {
+        const list = document.querySelector('.connections .connections_list');
+        const none = document.querySelector('.connections .no_connections');
+        list.innerHTML = '';
+
+        if (peers.size === 0 && waiting.length === 0) {
+            none.classList.remove('hidden');
+            list.classList.add('hidden');
+            return;
+        } else {
+            none.classList.add('hidden');
+            list.classList.remove('hidden');
+        }
+
+        for (let { sessionId, ip, remaining } of waiting) {
+            const item = document.querySelector('.connection_items .pending_item').cloneNode(true);
+            item.querySelector('.item_name').textContent = (ip ?? sessionId);
+
+            let timeLeft = Math.floor((remaining - Date.now()) / 1000);
+            item.querySelector('.item_text').textContent = `Approve within ${timeLeft} seconds.`;
+            const timer = setInterval(() => {
+                timeLeft--;
+                item.querySelector('.item_text').textContent = `Approve within ${timeLeft} seconds.`;
+
+                if (timeLeft <= 0) {
+                    clearInterval(timer);
+                }
+            }, 1000);
+
+            item.querySelector('.item_accept').addEventListener('click', async () => {
+                return approve(sessionId, ip);
+            });
+
+            item.querySelector('.item_decline').addEventListener('click', async () => {
+                return decline(sessionId);
+            });
+
+            list.appendChild(item);
+        }
+
+        for (let [sessionId, pc] of peers.entries()) {
+            if (["connected", "completed"].includes(pc.iceConnectionState)) {
+                const item = document.querySelector('.connection_items .active_item').cloneNode(true);
+                const metadata = peerMetadata.get(sessionId);
+
+                item.querySelector('.item_name').textContent = (metadata?.ip ?? sessionId);
+                item.querySelector('.item_text').textContent = (metadata?.connectedAt ? `Connected ${Math.floor((Date.now() - metadata.connectedAt) / 60000)}m ago` : 'Viewing your screen');
+
+                item.querySelector('.item_disconnect').addEventListener('click', async () => {
+                    return disconnect(sessionId);
+                });
+
+                list.appendChild(item);
+            }
+        }
     }
+
+    async function onRequest(event, { sessionId, ip = null }) {
+        if (!active) return;
+
+        waiting.push({ sessionId, ip, remaining: (Date.now() + 9000) });
+        document.querySelector('.tab-btn.connections').click();
+
+        setTimeout(async () => {
+            if (waiting.find(s => s.sessionId === sessionId)) {
+                await decline(sessionId);
+            }
+        }, 9000); // using 9000 for small delay
+    };
 
     async function onAnswer(event, { sessionId, answer }) {
         if (!active) return;
