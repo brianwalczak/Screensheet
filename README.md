@@ -8,21 +8,26 @@
 - (🖥️) Instantly share your desktop remotely with a secure, 8-digit connection code.
 - (⚡) No account or signup required - start a session in seconds, right on your network.
 - (🌐) Web-based viewer for easy access from any device, powered by WebRTC.
-- (⌨️) Real-time keyboard and mouse input forwarding for true remote access.
+- (⌨️) Real-time keyboard and mouse input forwarding that can be enabled or disabled.
+- (🔊) Optional device audio sharing that can be enabled or disabled.
+- (👥) View, accept, decline, and disconnect visitors with ease.
+- (✨) "Magic" mode featuring a magic-themed user interface!
 - (📦) Built with Node.js and Electron for cross-platform support.
 - (👤) Open-source under Apache 2.0 license - contribute or view it anytime.
 
 ## Demonstration
 
 ### Creating a Session
-https://github.com/user-attachments/assets/0851e384-b2cb-4366-80da-c45cd016cb6e
+https://github.com/user-attachments/assets/6da21f83-a8d9-4db9-8018-6e96a9e43ac0
 
 ### Viewing a Session
-https://github.com/user-attachments/assets/55a15dcd-d1a6-45aa-8f8c-825b0aa84775
+https://github.com/user-attachments/assets/45157dbe-762e-4b7a-8ae8-21c9e709c807
 
 
 
 ## Getting Started
+> [!TIP]
+> If you're not planning to use Screensheet for development, you can download the pre-bundled executable on the [releases](https://github.com/brianwalczak/Screensheet/releases/latest) page.
 
 To start, you can download this repository by using the following:
 ```bash
