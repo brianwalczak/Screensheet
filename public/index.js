@@ -77,19 +77,14 @@ socket.on('session:offer', async (data) => {
         };
     };
 
+    pc.onconnectionstatechange = async () => {
+        if (["disconnected", "failed", "closed"].includes(pc.connectionState)) {
+            onDisconnect();
+        }
+    };
+
     connect.textContent = 'Connect';
     connect.disabled = false;
-});
-
-socket.on('session:disconnect', () => {
-    video_container.classList.add('hidden');
-    input.value = '';
-    screenSize = null;
-    channel = null;
-
-    pc.close();
-    pc = new RTCPeerConnection();
-    return errorCode(410);
 });
 
 async function connection() {
@@ -104,6 +99,19 @@ async function connection() {
     connect.disabled = true;
     socket.emit('session:request', code);
 }
+
+function onDisconnect() {
+    video_container.classList.add('hidden');
+    input.value = '';
+    screenSize = null;
+    channel = null;
+
+    pc.close();
+    pc = new RTCPeerConnection();
+    return errorCode(410);
+}
+
+socket.on('session:disconnect', onDisconnect);
 
 // -- Handle Keyboard + Mouse -- //
 function calculatePos(event) {
