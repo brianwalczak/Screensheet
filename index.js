@@ -177,6 +177,7 @@ ipcMain.handle('settings:update', async (event, modified) => {
 
 // -- Express Server -- //
 
+app.set('trust proxy', true);
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Handle new viewer connections to the page
