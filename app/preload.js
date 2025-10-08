@@ -290,8 +290,7 @@ window.addEventListener('DOMContentLoaded', () => {
         });
 
         pc.onconnectionstatechange = async () => {
-            await statusChange(sessionId, pc.iceConnectionState);
-            return updateConnections();
+            await statusChange(sessionId, pc.iceConnectionState, true); // update status, disconnect if needed
         };
     };
 
@@ -305,7 +304,7 @@ window.addEventListener('DOMContentLoaded', () => {
             declined: true
         });
 
-        return updateConnections();
+        return updateConnections(); // no need to call statusChange since it was never an active connection
     };
 
     // Disconnects an active viewer connection and cleans up
@@ -317,7 +316,7 @@ window.addEventListener('DOMContentLoaded', () => {
         peers.connected.delete(sessionId);
         await ipcRenderer.invoke('session:disconnect', sessionId);
         
-        return updateConnections();
+        await statusChange(sessionId, "closed", false); // must call statusChange to update status since it's an active connection, don't try to disconnect again
     };
 
     // Updates the connections list in the UI based on current connections and requests
@@ -371,6 +370,32 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Handles changes in the peer connection status
+    async function statusChange(sessionId, state, shouldDisconnect = false) {
+        if (!active) return;
+        if (["connected", "completed"].includes(state)) {
+            updateStatus(getLabel('connected'), 'bg-green-500');
+        } else if (["disconnected", "failed", "closed"].includes(state)) {
+            if (shouldDisconnect) await disconnect(sessionId);
+
+            let anyConnected = false;
+            for (let peer of peers.connected.values()) {
+                let pc = peer?.pc;
+
+                if (["connected", "completed"].includes(pc.iceConnectionState)) {
+                    anyConnected = true;
+                    break;
+                }
+            }
+
+            if (!anyConnected) {
+                updateStatus(getLabel('disconnected'), 'bg-red-500');
+            }
+        }
+
+        return updateConnections();
+    }
+
     // Handles incoming connection requests from viewers
     async function onRequest(event, { sessionId, ip = null }) {
         if (!active) return;
@@ -392,35 +417,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Handles unexpected disconnections from viewers
     async function onDisconnect(event, sessionId) {
-        if (!active) return;
-        
-        await statusChange(sessionId, "closed");
-        return updateConnections();
+        await statusChange(sessionId, "closed", true); // update status, disconnect if needed (exactly as we would handle an onconnectionstatechange)
     };
-
-    // Handles changes in the peer connection status
-    async function statusChange(sessionId, state) {
-        if (!active) return;
-        if (["connected", "completed"].includes(state)) {
-            updateStatus(getLabel('connected'), 'bg-green-500');
-        } else if (["disconnected", "failed", "closed"].includes(state)) {
-            await disconnect(sessionId);
-
-            let anyConnected = false;
-            for (let peer of peers.connected.values()) {
-                let pc = peer?.pc;
-
-                if (["connected", "completed"].includes(pc.iceConnectionState)) {
-                    anyConnected = true;
-                    break;
-                }
-            }
-
-            if (!anyConnected) {
-                updateStatus(getLabel('disconnected'), 'bg-red-500');
-            }
-        }
-    }
 
     // Magic button switch event
     magicToggle.addEventListener('click', () => {
@@ -512,8 +510,9 @@ window.addEventListener('DOMContentLoaded', () => {
             }
 
             peers.connected.clear();
+            peers.pending.clear();
 
-            await ipcRenderer.invoke('session:stop', input.value);
+            await ipcRenderer.invoke('session:stop');
 
             stop.classList.add('hidden');
             start.classList.remove('hidden');
