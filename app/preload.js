@@ -417,7 +417,12 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Handles unexpected disconnections from viewers
     async function onDisconnect(event, sessionId) {
-        await statusChange(sessionId, "closed", true); // update status, disconnect if needed (exactly as we would handle an onconnectionstatechange)
+        if (peers.connected.has(sessionId)) {
+            await statusChange(sessionId, "closed", true); // update status, disconnect if needed (exactly as we would handle an onconnectionstatechange)
+        } else if (peers.pending.has(sessionId)) {
+            peers.pending.delete(sessionId); // just remove from pending if not connected yet
+            return updateConnections(); // no need to call statusChange since it was never an active connection
+        }
     };
 
     // Magic button switch event
