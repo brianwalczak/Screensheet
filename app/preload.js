@@ -155,10 +155,12 @@ window.addEventListener('DOMContentLoaded', () => {
             document.body.classList.remove('bg-white');
             document.body.classList.add('bg-purple-100');
 
-            document.querySelector('.settings-div').classList.remove('bg-gray-50');
-            document.querySelector('.settings-div').classList.remove('border-gray-200');
-            document.querySelector('.settings-div').classList.add('bg-purple-50');
-            document.querySelector('.settings-div').classList.add('border-purple-200');
+            document.querySelectorAll('.settings-div').forEach(div => {
+                div.classList.remove('bg-gray-50');
+                div.classList.remove('border-gray-200');
+                div.classList.add('bg-purple-50');
+                div.classList.add('border-purple-200');
+            });
 
             document.querySelectorAll('.connection_items div').forEach(div => {
                 div.classList.remove('bg-white');
@@ -175,10 +177,12 @@ window.addEventListener('DOMContentLoaded', () => {
             document.body.classList.remove('bg-purple-100');
             document.body.classList.add('bg-white');
 
-            document.querySelector('.settings-div').classList.remove('bg-purple-50');
-            document.querySelector('.settings-div').classList.remove('border-purple-200');
-            document.querySelector('.settings-div').classList.add('bg-gray-50');
-            document.querySelector('.settings-div').classList.add('border-gray-200');
+            document.querySelectorAll('.settings-div').forEach(div => {
+                div.classList.remove('bg-purple-50');
+                div.classList.remove('border-purple-200');
+                div.classList.add('bg-gray-50');
+                div.classList.add('border-gray-200');
+            });
 
             document.querySelectorAll('.connection_items div').forEach(div => {
                 div.classList.remove('bg-purple-50');
