@@ -32,16 +32,16 @@
   },
   "devDependencies": {
     "electron": "^38.2.1",
-    "electron-builder": "^26.0.12"
+    "electron-builder": "^26.0.12",
+    "@tailwindcss/cli": "^4.1.14",
+    "tailwindcss": "^4.1.14"
   },
   "dependencies": {
     "@nut-tree-fork/nut-js": "^4.2.6",
-    "@tailwindcss/cli": "^4.1.14",
     "express": "^5.1.0",
     "install": "^0.13.0",
     "npm": "^11.6.1",
     "socket.io": "^4.8.1",
-    "tailwindcss": "^4.1.14",
     "uuid": "^13.0.0"
   }
 }
