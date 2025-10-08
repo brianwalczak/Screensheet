@@ -1,17 +1,23 @@
 const { contextBridge, ipcRenderer } = require('electron');
 const labels = {
     normal: {
+        appTitle: "Screensheet Client",
         title: "Screensheet",
         description: "Share your desktop remotely in seconds",
         codeLabel: "Connection Code",
         warningTitle: "Security Warning",
         warningDescription: `<span class="font-semibold">Never</span> share this code with anyone you don't trust. It grants full device access.`,
+        connectionsLabel: "Connected", // [... ago] OR [just now]
 
         startBtn: "Start Session",
         startingBtn: "Starting session...",
         endBtn: "Stop Session",
         copyBtn: "Copy",
         copiedBtn: "Copied!",
+
+        menu_home: "Home",
+        menu_connections: "Connections",
+        menu_settings: "Settings",
 
         connected: "Connected",
         disconnected: "Disconnected",
@@ -24,17 +30,23 @@ const labels = {
         serverPort: "Server Port"
     },
     magic: {
+        appTitle: "Screenmagic Client",
         title: "Magic Mode",
         description: "Summon a portal to your dimension in seconds",
         codeLabel: "Portal Key",
         warningTitle: "Portal Warning",
         warningDescription: `<span class="font-semibold">Never</span> share this key with untrusted beings. It grants complete access to your dimension.`,
+        connectionsLabel: "Entered", // [... ago] OR [just now]
 
         startBtn: "Summon Portal",
         startingBtn: "Summoning portal...",
         endBtn: "Close Portal",
         copyBtn: "Grab Key",
         copiedBtn: "Grabbed!",
+
+        menu_home: "Sanctuary",
+        menu_connections: "Visitors",
+        menu_settings: "Enchantments",
 
         connected: "Portal Opened",
         disconnected: "Portal Closed",
@@ -118,6 +130,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Updates all labels on the page based on the current mode
     function updateLabels() {
+        document.title = getLabel('appTitle');
+
         document.querySelector('.title').textContent = getLabel('title');
         document.querySelector('.description').textContent = getLabel('description');
         document.querySelector('.code_label').textContent = getLabel('codeLabel');
@@ -133,6 +147,10 @@ window.addEventListener('DOMContentLoaded', () => {
         document.querySelector('.settings-div span[for="control"]').textContent = getLabel('remoteControl');
         document.querySelector('.settings-div span[for="port"]').textContent = getLabel('serverPort');
 
+        document.querySelector('.tab-btn.home').textContent = getLabel('menu_home');
+        document.querySelector('.tab-btn.connections').textContent = getLabel('menu_connections');
+        document.querySelector('.tab-btn.settings').textContent = getLabel('menu_settings');
+
         if (magic.checked) {
             document.body.classList.remove('bg-white');
             document.body.classList.add('bg-purple-100');
@@ -141,6 +159,13 @@ window.addEventListener('DOMContentLoaded', () => {
             document.querySelector('.settings-div').classList.remove('border-gray-200');
             document.querySelector('.settings-div').classList.add('bg-purple-50');
             document.querySelector('.settings-div').classList.add('border-purple-200');
+
+            document.querySelectorAll('.connection_items div').forEach(div => {
+                div.classList.remove('bg-white');
+                div.classList.remove('border-gray-200');
+                div.classList.add('bg-purple-50');
+                div.classList.add('border-purple-200');
+            });
 
             magicToggle.classList.remove('bg-white');
             magicToggle.classList.remove('hover:bg-gray-100');
@@ -155,11 +180,20 @@ window.addEventListener('DOMContentLoaded', () => {
             document.querySelector('.settings-div').classList.add('bg-gray-50');
             document.querySelector('.settings-div').classList.add('border-gray-200');
 
+            document.querySelectorAll('.connection_items div').forEach(div => {
+                div.classList.remove('bg-purple-50');
+                div.classList.remove('border-purple-200');
+                div.classList.add('bg-white');
+                div.classList.add('border-gray-200');
+            });
+
             magicToggle.classList.remove('bg-purple-200');
             magicToggle.classList.remove('hover:bg-purple-300');
             magicToggle.classList.add('bg-white');
             magicToggle.classList.add('hover:bg-gray-100');
         }
+
+        updateConnections(); // update connections list to reflect new labels + bg
     }
 
     // Updates the audio track being sent to peers based on whether audio sharing is enabled
@@ -359,7 +393,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 item.querySelector('.item_name').textContent = (metadata?.ip ?? sessionId);
                 
                 const minutesAgo = Math.floor((Date.now() - metadata?.connectedAt) / 60000);
-                item.querySelector('.item_text').textContent = (minutesAgo === 0 ? 'Connected just now' : `Connected ${minutesAgo}m ago`);
+                item.querySelector('.item_text').textContent = (minutesAgo === 0 ? `${getLabel('connectionsLabel')} just now` : `${getLabel('connectionsLabel')} ${minutesAgo}m ago`);
 
                 item.querySelector('.item_disconnect').addEventListener('click', async () => {
                     return disconnect(sessionId);
