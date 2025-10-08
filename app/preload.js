@@ -359,7 +359,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 item.querySelector('.item_name').textContent = (metadata?.ip ?? sessionId);
                 
                 const minutesAgo = Math.floor((Date.now() - metadata?.connectedAt) / 60000);
-                item.querySelector('.item_text').textContent = (metadata?.connectedAt ? (minutesAgo === 0 ? 'Connected just now' : `Connected ${minutesAgo}m ago`) : 'Viewing your screen');
+                item.querySelector('.item_text').textContent = (minutesAgo === 0 ? 'Connected just now' : `Connected ${minutesAgo}m ago`);
 
                 item.querySelector('.item_disconnect').addEventListener('click', async () => {
                     return disconnect(sessionId);
