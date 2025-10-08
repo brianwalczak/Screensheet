@@ -10,7 +10,10 @@
     "dist": "npx electron-builder",
     "build:css": "npx tailwindcss -o ./public/output.css --content ./public/**/*.html --config ./tailwind.config.js --minify && npx tailwindcss -o ./app/output.css --content ./app/**/*.html --config ./tailwind.config.js --minify"
   },
-  "author": "Brian Walczak",
+  "author": {
+    "name": "Brian Walczak",
+    "email": "brian@brianwalczak.com"
+  },
   "license": "Apache-2.0",
   "build": {
     "appId": "com.brianwalczak.screensheet",
@@ -47,6 +50,7 @@
         }
       ]
     },
+    "publish": null,
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": false,
