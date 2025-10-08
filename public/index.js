@@ -163,10 +163,14 @@ const keyEvent = (event) => {
 };
 
 video.addEventListener('contextmenu', (e) => e.preventDefault());
-video.addEventListener('mousemove', mouseEvent);
-video.addEventListener('mousedown', mouseEvent);
-video.addEventListener('mouseup', mouseEvent);
-window.addEventListener('keydown', keyEvent);
-window.addEventListener('keyup', keyEvent);
+
+// -- Mouse Input -- //
+video.addEventListener('mousemove', mouseEvent); // mouse was moved
+video.addEventListener('mousedown', mouseEvent); // mouse button was pressed down
+video.addEventListener('mouseup', mouseEvent); // mouse button was lifted up
+
+// -- Keyboard Input -- //
+window.addEventListener('keydown', keyEvent); // key was pressed down
+window.addEventListener('keyup', keyEvent); // key was lifted up
 
 input.focus();
