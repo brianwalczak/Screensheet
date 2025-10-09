@@ -1,0 +1,9 @@
+{
+  "name": "@screensheet/keymaps",
+  "version": "1.0.0",
+  "description": "A utility to handle keymaps for each supported OS version.",
+  "license": "MIT",
+  "author": "Brian Walczak",
+  "type": "commonjs",
+  "main": "index.js"
+}

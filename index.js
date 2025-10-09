@@ -1,6 +1,6 @@
 const { screen, mouse, keyboard, Key, Button, Point } = require("@nut-tree-fork/nut-js");
 const { app: electron, BrowserWindow, ipcMain, desktopCapturer } = require('electron');
-const keymaps = require('./keymaps.js');
+const keymaps = require('./keymaps');
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
@@ -140,11 +140,13 @@ ipcMain.handle('nutjs:keyboard', async (event, data) => {
             if (event.key.length === 1 && !event.relyingKey) { // type
                 await keyboard.type(event.key);
             } else { // key press or release
-                await keyboard.pressKey(Key[keymaps[event.code]]);
+                const key = keymaps[event.code];
+                if (key) await keyboard.pressKey(Key[key]);
             }
         } else if (method === 'keyup') {
             if (event.key.length !== 1 || (event.key.length === 1 && event.relyingKey)) { // key release only
-                await keyboard.releaseKey(Key[keymaps[event.code]]);
+                const key = keymaps[event.code];
+                if (key) await keyboard.releaseKey(Key[key]);
             }
         }
     } catch { };
