@@ -189,7 +189,12 @@ io.on('connection', (socket) => {
     // Repeat session requests from viewers trying to connect to the host
     socket.on('session:request', async (code) => {
         if (!activeCode || code !== activeCode) return socket.emit('error', 404);
-        const ip = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address || null;
+
+        // Try Cloudflare header first, then x-forwarded-for, then fallback
+        const ip = socket.handshake.headers['cf-connecting-ip']
+            || (socket.handshake.headers['x-forwarded-for']?.split(',')[0].trim())
+            || socket.handshake.address
+            || null;
 
         window.webContents.send('session:request', { sessionId, ip });
     });

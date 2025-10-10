@@ -363,15 +363,6 @@ window.addEventListener('DOMContentLoaded', () => {
         const none = document.querySelector('.connections .no_connections');
         list.innerHTML = '';
 
-        if (peers.connected.size === 0 && peers.pending.size === 0) {
-            none.classList.remove('hidden');
-            list.classList.add('hidden');
-            return;
-        } else {
-            none.classList.add('hidden');
-            list.classList.remove('hidden');
-        }
-
         for (let [sessionId, peer] of peers.pending.entries()) {
             const item = document.querySelector('.connection_items .pending_item').cloneNode(true);
             item.querySelector('.item_name').textContent = (peer.ip ?? sessionId);
@@ -405,6 +396,14 @@ window.addEventListener('DOMContentLoaded', () => {
 
                 list.appendChild(item);
             }
+        }
+
+        if (list.children.length === 0) {
+            none.classList.remove('hidden');
+            list.classList.add('hidden');
+        } else {
+            none.classList.add('hidden');
+            list.classList.remove('hidden');
         }
     }
 
