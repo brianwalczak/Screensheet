@@ -1,5 +1,5 @@
 const { contextBridge, ipcRenderer } = require('electron');
-const labels = require('./translations.js');
+const { getLabel, findMatching } = require('./translations.js');
 let peers = {
     connected: new Map(), // stores active peer connections
     pending: new Map() // stores pending connection requests
@@ -53,19 +53,6 @@ window.addEventListener('DOMContentLoaded', () => {
             span.classList.remove('translate-x-6');
             span.classList.add('translate-x-1');
         }
-    }
-
-    // Returns the correct label based on whether magic mode is enabled
-    function getLabel(key) {
-        return magic.checked ? labels.magic[key] : labels.normal[key];
-    }
-
-    // Finds a matching label in the opposite mode (for status updates)
-    const findMatching = (text, location) => {
-        const keyName = Object.keys(labels[location]).find(k => labels[location][k] === text);
-        if (!keyName) return null;
-
-        return labels[location === 'normal' ? 'magic' : 'normal'][keyName] ?? null;
     }
 
     // Updates all labels on the page based on the current mode
@@ -328,7 +315,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 item.querySelector('.item_name').textContent = (metadata?.ip ?? sessionId);
 
                 const minutesAgo = Math.floor((Date.now() - metadata?.connectedAt) / 60000);
-                item.querySelector('.item_text').textContent = (minutesAgo === 0 ? `${getLabel('connectionsLabel')} just now` : `${getLabel('connectionsLabel')} ${minutesAgo}m ago`);
+                item.querySelector('.item_text').textContent = (minutesAgo === 0 ? getLabel('connectionsLabel').replace('{status}', 'just now') : getLabel('connectionsLabel').replace('{status}', `${minutesAgo}m ago`));
 
                 item.querySelector('.item_disconnect').addEventListener('click', async () => {
                     return disconnect(sessionId);

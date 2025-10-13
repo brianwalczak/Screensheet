@@ -6,7 +6,7 @@ const labels = {
         codeLabel: "Connection Code",
         warningTitle: "Security Warning",
         warningDescription: `<span class="font-semibold">Never</span> share this code with anyone you don't trust. It grants full device access.`,
-        connectionsLabel: "Connected", // [... ago] OR [just now]
+        connectionsLabel: "Connected {status}",
 
         startBtn: "Start Session",
         startingBtn: "Starting session...",
@@ -35,7 +35,7 @@ const labels = {
         codeLabel: "Portal Key",
         warningTitle: "Portal Warning",
         warningDescription: `<span class="font-semibold">Never</span> share this key with untrusted beings. It grants complete access to your dimension.`,
-        connectionsLabel: "Entered", // [... ago] OR [just now]
+        connectionsLabel: "Entered {status}",
 
         startBtn: "Summon Portal",
         startingBtn: "Summoning portal...",
@@ -59,6 +59,19 @@ const labels = {
     }
 };
 
+// Returns the correct label based on whether magic mode is enabled
+function getLabel(key) {
+    return magic.checked ? labels.magic[key] : labels.normal[key];
+};
+
+// Finds a matching label in the opposite mode (for status updates)
+const findMatching = (text, location) => {
+    const keyName = Object.keys(labels[location]).find(k => labels[location][k] === text);
+    if (!keyName) return null;
+
+    return labels[location === 'normal' ? 'magic' : 'normal'][keyName] ?? null;
+};
+
 if (typeof module !== 'undefined' && module.exports) {
-    try { module.exports = labels; } catch (e) { }
-}
+    try { module.exports = { getLabel, findMatching }; } catch (e) { }
+};
