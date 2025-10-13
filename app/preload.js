@@ -29,6 +29,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const controlToggle = document.querySelector('#control_toggle');
     const control = document.querySelector('#control');
     const port = document.querySelector('#port');
+    const method = document.querySelector('#method');
 
     // Creates an empty audio track for when audio sharing is disabled
     const emptyAudio = (() => {
@@ -73,6 +74,7 @@ window.addEventListener('DOMContentLoaded', () => {
         document.querySelector('.settings-div span[for="audio"]').textContent = getLabel('audioSharing');
         document.querySelector('.settings-div span[for="control"]').textContent = getLabel('remoteControl');
         document.querySelector('.settings-div span[for="port"]').textContent = getLabel('serverPort');
+        document.querySelector('.settings-div span[for="method"]').textContent = getLabel('connectionMethod');
 
         document.querySelector('.tab-btn.home').textContent = getLabel('menu_home');
         document.querySelector('.tab-btn.connections').textContent = getLabel('menu_connections');
@@ -155,6 +157,7 @@ window.addEventListener('DOMContentLoaded', () => {
             audio.checked = (settings.audio ?? true);
             control.checked = (settings.control ?? true);
             port.value = (settings.port ?? 3000);
+            method.value = (settings.method ?? 'auto');
 
             toggleChange(audioToggle, audio.checked);
             toggleChange(controlToggle, control.checked);
@@ -440,6 +443,13 @@ window.addEventListener('DOMContentLoaded', () => {
         } else {
             port.value = oldPort ?? 3000;
         }
+    });
+
+    // Method dropdown change event
+    method.addEventListener('change', () => {
+        ipcRenderer.invoke('settings:update', {
+            method: method.value
+        });
     });
 
     document.querySelector('.tab-btn.connections').addEventListener('click', () => updateConnections());

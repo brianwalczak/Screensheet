@@ -262,6 +262,23 @@
             <input type="number" id="port" min="1024" max="65535" value="3000"
               class="w-20 bg-white border border-gray-300 text-gray-900 text-sm text-center py-1 px-2 rounded focus:outline-none focus:border-gray-400 transition-colors" />
           </div>
+
+          <div class="flex items-center justify-between pt-3 border-t border-gray-200">
+            <div class="flex items-center space-x-3">
+              <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0">
+                </path>
+              </svg>
+              <span for="method" class="text-sm font-medium text-gray-700">Protocol</span>
+            </div>
+            <select id="method"
+              class="bg-white border border-gray-300 text-gray-900 text-sm py-1 px-3 rounded focus:outline-none focus:border-gray-400 transition-colors">
+              <option value="auto">Automatic</option>
+              <option value="websockets">WebSockets</option>
+              <option value="webrtc">WebRTC</option>
+            </select>
+          </div>
         </div>
       </div>
     </div>

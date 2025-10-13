@@ -26,7 +26,8 @@ const labels = {
 
         audioSharing: "Audio Sharing",
         remoteControl: "Remote Control",
-        serverPort: "Server Port"
+        serverPort: "Server Port",
+        connectionMethod: "Protocol"
     },
     magic: {
         appTitle: "Screenmagic Client",
@@ -55,7 +56,8 @@ const labels = {
 
         audioSharing: "Sound Relay",
         remoteControl: "Portal Control",
-        serverPort: "Portal Node"
+        serverPort: "Portal Node",
+        connectionMethod: "Ritual Type"
     }
 };
 

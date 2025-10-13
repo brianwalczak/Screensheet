@@ -214,7 +214,7 @@ io.on('connection', (socket) => {
 
 (async () => {
     try {
-        const defaults = { port: 3000, audio: true, control: true, magic: false };
+        const defaults = { port: 3000, audio: true, control: true, magic: false, method: 'auto' };
         let data;
 
         if (fs.existsSync(settingsPath)) {
