@@ -15,6 +15,8 @@ let settings;
 let window;
 let server;
 
+electron.commandLine.appendSwitch('enable-logging');
+
 async function newServer(port = (settings?.port ?? 3000)) {
     let restart = false;
 

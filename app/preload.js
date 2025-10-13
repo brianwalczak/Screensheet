@@ -1,65 +1,5 @@
 const { contextBridge, ipcRenderer } = require('electron');
-const labels = {
-    normal: {
-        appTitle: "Screensheet Client",
-        title: "Screensheet",
-        description: "Share your desktop remotely in seconds",
-        codeLabel: "Connection Code",
-        warningTitle: "Security Warning",
-        warningDescription: `<span class="font-semibold">Never</span> share this code with anyone you don't trust. It grants full device access.`,
-        connectionsLabel: "Connected", // [... ago] OR [just now]
-
-        startBtn: "Start Session",
-        startingBtn: "Starting session...",
-        endBtn: "Stop Session",
-        copyBtn: "Copy",
-        copiedBtn: "Copied!",
-
-        menu_home: "Home",
-        menu_connections: "Connections",
-        menu_settings: "Settings",
-
-        connected: "Connected",
-        disconnected: "Disconnected",
-        waiting: "Waiting",
-        active: "Active",
-        inactive: "Inactive",
-
-        audioSharing: "Audio Sharing",
-        remoteControl: "Remote Control",
-        serverPort: "Server Port"
-    },
-    magic: {
-        appTitle: "Screenmagic Client",
-        title: "Magic Mode",
-        description: "Summon a portal to your dimension in seconds",
-        codeLabel: "Portal Key",
-        warningTitle: "Portal Warning",
-        warningDescription: `<span class="font-semibold">Never</span> share this key with untrusted beings. It grants complete access to your dimension.`,
-        connectionsLabel: "Entered", // [... ago] OR [just now]
-
-        startBtn: "Summon Portal",
-        startingBtn: "Summoning portal...",
-        endBtn: "Close Portal",
-        copyBtn: "Grab Key",
-        copiedBtn: "Grabbed!",
-
-        menu_home: "Sanctuary",
-        menu_connections: "Visitors",
-        menu_settings: "Enchantments",
-
-        connected: "Portal Opened",
-        disconnected: "Portal Closed",
-        waiting: "Summoning",
-        active: "Open",
-        inactive: "Sealed",
-
-        audioSharing: "Sound Relay",
-        remoteControl: "Portal Control",
-        serverPort: "Portal Node"
-    }
-};
-
+const labels = require('./translations.js');
 let peers = {
     connected: new Map(), // stores active peer connections
     pending: new Map() // stores pending connection requests
@@ -353,7 +293,7 @@ window.addEventListener('DOMContentLoaded', () => {
         pc.close();
         peers.connected.delete(sessionId);
         await ipcRenderer.invoke('session:disconnect', sessionId);
-        
+
         await statusChange(sessionId, "closed", false); // must call statusChange to update status since it's an active connection, don't try to disconnect again
     };
 
@@ -386,7 +326,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 const metadata = peers.connected.get(sessionId)?.meta;
 
                 item.querySelector('.item_name').textContent = (metadata?.ip ?? sessionId);
-                
+
                 const minutesAgo = Math.floor((Date.now() - metadata?.connectedAt) / 60000);
                 item.querySelector('.item_text').textContent = (minutesAgo === 0 ? `${getLabel('connectionsLabel')} just now` : `${getLabel('connectionsLabel')} ${minutesAgo}m ago`);
 
