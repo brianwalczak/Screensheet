@@ -196,7 +196,7 @@ window.addEventListener('DOMContentLoaded', () => {
             } catch { };
         }, async (state) => {
             // on state change
-            await statusChange(sessionId, state, true); // update status, disconnect if needed
+            await statusChange(state, sessionId); // update status, disconnect if needed
         });
 
         // Send the session response with the offer for the viewer to connect
@@ -222,7 +222,7 @@ window.addEventListener('DOMContentLoaded', () => {
         await connection.disconnect(sessionId);
 
         await ipcRenderer.invoke('session:disconnect', sessionId);
-        await statusChange(sessionId, "closed", false); // must call statusChange to update status since it's an active connection, don't try to disconnect again
+        await statusChange("closed"); // must call statusChange to update status since it's an active connection, don't try to disconnect again
     };
 
     // Updates the connections list in the UI based on current connections and requests
@@ -273,12 +273,12 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     // Handles changes in the peer connection status
-    async function statusChange(sessionId, state, shouldDisconnect = false) {
+    async function statusChange(state, shouldDisconnect = null) {
         if (!connection) return;
         if (["connected", "completed"].includes(state)) {
             updateStatus(getLabel('connected'), 'bg-green-500');
         } else if (["disconnected", "failed", "closed"].includes(state)) {
-            if (shouldDisconnect) await disconnect(sessionId);
+            if (shouldDisconnect) await disconnect(shouldDisconnect);
 
             if (Object.keys(connection.filterConnections('connected')).length === 0) {
                 updateStatus(getLabel('disconnected'), 'bg-red-500');
@@ -309,7 +309,7 @@ window.addEventListener('DOMContentLoaded', () => {
         if (!connection) return;
 
         if (connection.isConnected(sessionId)) {
-            await statusChange(sessionId, "closed", true); // update status, disconnect if needed (exactly as we would handle an onconnectionstatechange)
+            await statusChange("closed", sessionId); // update status, disconnect if needed (exactly as we would handle an onconnectionstatechange)
         } else if (connection.isPending(sessionId)) {
             connection.removeOffer(sessionId); // just remove from pending if not connected yet
             return updateConnections(); // no need to call statusChange since it was never an active connection
