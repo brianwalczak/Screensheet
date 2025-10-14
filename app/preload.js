@@ -1,11 +1,9 @@
 const { contextBridge, ipcRenderer } = require('electron');
 const { getLabel, findMatching } = require('./translations.js');
-let peers = {
-    connected: new Map(), // stores active peer connections
-    pending: new Map() // stores pending connection requests
-};
+const WebRTCConnection = require('./libs/webrtc.js');
+const WebSocketConnection = require('./libs/websocket.js');
 
-let active = false; // whether a session is currently active
+let connection; // the current connection instance (WebRTC or WebSocket)
 let display = null; // the current display media stream
 let screenSize = null; // the dimensions of `display` param
 
@@ -31,13 +29,13 @@ window.addEventListener('DOMContentLoaded', () => {
     const port = document.querySelector('#port');
     const method = document.querySelector('#method');
 
-    // Creates an empty audio track for when audio sharing is disabled
-    const emptyAudio = (() => {
-        const ctx = new AudioContext();
-        const dst = ctx.createMediaStreamDestination();
+    function startConnection() {
+        connection = method.value === 'websocket' ? new WebSocketConnection() : new WebRTCConnection();
+    };
 
-        return dst.stream.getAudioTracks()[0];
-    })();
+    function endConnection() {
+        connection = null;
+    };
 
     // Changes the status of a toggle switch (UI change)
     function toggleChange(toggle, val) {
@@ -129,27 +127,6 @@ window.addEventListener('DOMContentLoaded', () => {
         updateConnections(); // update connections list to reflect new labels + bg
     }
 
-    // Updates the audio track being sent to peers based on whether audio sharing is enabled
-    async function updateAudio() {
-        if (!active || !display) return;
-
-        for (let peer of peers.connected.values()) {
-            let pc = peer?.pc;
-
-            for (let sender of pc.getSenders()) {
-                if (sender.track.kind === 'audio') {
-                    if (audio.checked) {
-                        if (display.getAudioTracks().length !== 0) {
-                            sender.replaceTrack(display.getAudioTracks()[0]);
-                        }
-                    } else {
-                        sender.replaceTrack(emptyAudio);
-                    }
-                }
-            }
-        }
-    }
-
     // Load the settings configuration from the main process
     ipcRenderer.invoke('settings:load').then(settings => {
         if (settings) {
@@ -202,24 +179,14 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     // Approves a viewer's connection request and establishes a peer connection
-    async function approve(sessionId, ip = null) {
-        if (!active) return;
-        peers.pending.delete(sessionId); // remove from wait list
-
-        peers.connected.set(sessionId, { pc: new RTCPeerConnection(), meta: { connectedAt: Date.now(), ip } });
-        const pc = peers.connected.get(sessionId)?.pc;
-
+    async function approve(sessionId) {
+        if (!connection) return;
         if (!display) {
             await createDisplay();
         }
 
-        const channel = pc.createDataChannel('input');
-
-        channel.onopen = () => {
-            channel.send(JSON.stringify(screenSize));
-        };
-
-        channel.onmessage = (e) => {
+        const handshake = await connection.acceptOffer(sessionId, { display, screenSize }, audio.checked, (e) => {
+            // on message
             try {
                 const message = JSON.parse(e.data);
 
@@ -227,45 +194,19 @@ window.addEventListener('DOMContentLoaded', () => {
                     ipcRenderer.invoke(`nutjs:${message.name}`, message);
                 }
             } catch { };
-        };
-
-        display.getTracks().forEach(track => {
-            if (track.kind === 'audio' && !audio.checked) return pc.addTrack(emptyAudio, display); // replace with silent track if audio disabled
-            pc.addTrack(track, display); // add actual track if audio enabled or if video
-        });
-
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-
-        // Wait for connection to finish gathering ICE candidates
-        await new Promise(resolve => {
-            if (pc.iceGatheringState === "complete") {
-                resolve();
-            } else {
-                pc.onicegatheringstatechange = () => {
-                    if (pc.iceGatheringState === "complete") resolve();
-                };
-            }
+        }, async (state) => {
+            // on state change
+            await statusChange(sessionId, state, true); // update status, disconnect if needed
         });
 
         // Send the session response with the offer for the viewer to connect
-        await ipcRenderer.invoke('session:response', {
-            sessionId,
-            offer: {
-                type: pc.localDescription.type,
-                sdp: pc.localDescription.sdp
-            }
-        });
-
-        pc.onconnectionstatechange = async () => {
-            await statusChange(sessionId, pc.iceConnectionState, true); // update status, disconnect if needed
-        };
+        await ipcRenderer.invoke('session:response', handshake);
     };
 
     // Declines a viewer's connection request
     async function decline(sessionId) {
-        if (!active) return;
-        peers.pending.delete(sessionId); // remove from wait list
+        if (!connection) return;
+        connection.removeOffer(sessionId); // remove from wait list
 
         await ipcRenderer.invoke('session:response', {
             sessionId,
@@ -277,13 +218,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Disconnects an active viewer connection and cleans up
     async function disconnect(sessionId) {
-        const pc = peers.connected.get(sessionId)?.pc;
-        if (!pc) return;
+        await connection.disconnect(sessionId);
 
-        pc.close();
-        peers.connected.delete(sessionId);
         await ipcRenderer.invoke('session:disconnect', sessionId);
-
         await statusChange(sessionId, "closed", false); // must call statusChange to update status since it's an active connection, don't try to disconnect again
     };
 
@@ -293,12 +230,12 @@ window.addEventListener('DOMContentLoaded', () => {
         const none = document.querySelector('.connections .no_connections');
         list.innerHTML = '';
 
-        for (let [sessionId, peer] of peers.pending.entries()) {
+        for (let [sessionId, meta] of connection.getPending().entries()) {
             const item = document.querySelector('.connection_items .pending_item').cloneNode(true);
-            item.querySelector('.item_name').textContent = (peer.ip ?? sessionId);
+            item.querySelector('.item_name').textContent = (meta.ip ?? sessionId);
 
             item.querySelector('.item_accept').addEventListener('click', async () => {
-                return approve(sessionId, peer.ip);
+                return approve(sessionId);
             });
 
             item.querySelector('.item_decline').addEventListener('click', async () => {
@@ -308,24 +245,19 @@ window.addEventListener('DOMContentLoaded', () => {
             list.appendChild(item);
         }
 
-        for (let [sessionId, peer] of peers.connected.entries()) {
-            let pc = peer?.pc;
+        for (let [sessionId, meta] of Object.entries(connection.filterConnections('connected'))) {
+            const item = document.querySelector('.connection_items .active_item').cloneNode(true);
 
-            if (["connected", "completed"].includes(pc.iceConnectionState)) {
-                const item = document.querySelector('.connection_items .active_item').cloneNode(true);
-                const metadata = peers.connected.get(sessionId)?.meta;
+            item.querySelector('.item_name').textContent = (meta?.ip ?? sessionId);
 
-                item.querySelector('.item_name').textContent = (metadata?.ip ?? sessionId);
+            const minutesAgo = Math.floor((Date.now() - meta?.connectedAt) / 60000);
+            item.querySelector('.item_text').textContent = (minutesAgo === 0 ? getLabel('connectionsLabel').replace('{status}', 'just now') : getLabel('connectionsLabel').replace('{status}', `${minutesAgo}m ago`));
 
-                const minutesAgo = Math.floor((Date.now() - metadata?.connectedAt) / 60000);
-                item.querySelector('.item_text').textContent = (minutesAgo === 0 ? getLabel('connectionsLabel').replace('{status}', 'just now') : getLabel('connectionsLabel').replace('{status}', `${minutesAgo}m ago`));
+            item.querySelector('.item_disconnect').addEventListener('click', async () => {
+                return disconnect(sessionId);
+            });
 
-                item.querySelector('.item_disconnect').addEventListener('click', async () => {
-                    return disconnect(sessionId);
-                });
-
-                list.appendChild(item);
-            }
+            list.appendChild(item);
         }
 
         if (list.children.length === 0) {
@@ -339,23 +271,13 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Handles changes in the peer connection status
     async function statusChange(sessionId, state, shouldDisconnect = false) {
-        if (!active) return;
+        if (!connection) return;
         if (["connected", "completed"].includes(state)) {
             updateStatus(getLabel('connected'), 'bg-green-500');
         } else if (["disconnected", "failed", "closed"].includes(state)) {
             if (shouldDisconnect) await disconnect(sessionId);
 
-            let anyConnected = false;
-            for (let peer of peers.connected.values()) {
-                let pc = peer?.pc;
-
-                if (["connected", "completed"].includes(pc.iceConnectionState)) {
-                    anyConnected = true;
-                    break;
-                }
-            }
-
-            if (!anyConnected) {
+            if (Object.keys(connection.filterConnections('connected')).length === 0) {
                 updateStatus(getLabel('disconnected'), 'bg-red-500');
             }
         }
@@ -365,29 +287,28 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Handles incoming connection requests from viewers
     async function onRequest(event, { sessionId, ip = null }) {
-        if (!active) return;
+        if (!connection) return;
 
-        peers.pending.set(sessionId, { ip });
+        connection.addOffer(sessionId, { ip });
         document.querySelector('.tab-btn.connections').click();
     };
 
     // Handles incoming session answers from viewers for connection
     async function onAnswer(event, { sessionId, answer }) {
-        if (!active) return;
+        if (!connection) return;
         if (!sessionId || !answer) return;
-        const pc = peers.connected.get(sessionId)?.pc;
-        if (!pc) return;
 
-        await pc.setRemoteDescription(answer);
-        return true;
+        return await connection.acceptAnswer(sessionId, answer);
     };
 
     // Handles unexpected disconnections from viewers
     async function onDisconnect(event, sessionId) {
-        if (peers.connected.has(sessionId)) {
+        if (!connection) return;
+
+        if (connection.isConnected(sessionId)) {
             await statusChange(sessionId, "closed", true); // update status, disconnect if needed (exactly as we would handle an onconnectionstatechange)
-        } else if (peers.pending.has(sessionId)) {
-            peers.pending.delete(sessionId); // just remove from pending if not connected yet
+        } else if (connection.isPending(sessionId)) {
+            connection.removeOffer(sessionId); // just remove from pending if not connected yet
             return updateConnections(); // no need to call statusChange since it was never an active connection
         }
     };
@@ -404,7 +325,7 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 
     // Audio toggle switch event
-    audioToggle.addEventListener('click', () => {
+    audioToggle.addEventListener('click', async () => {
         audio.checked = (!audio.checked);
 
         ipcRenderer.invoke('settings:update', {
@@ -412,7 +333,10 @@ window.addEventListener('DOMContentLoaded', () => {
         });
 
         toggleChange(audioToggle, audio.checked);
-        return updateAudio();
+
+        if (connection && display) {
+            await connection.updateAudio(audio.checked, { display });
+        }
     });
 
     // Control toggle switch event
@@ -445,13 +369,6 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Method dropdown change event
-    method.addEventListener('change', () => {
-        ipcRenderer.invoke('settings:update', {
-            method: method.value
-        });
-    });
-
     document.querySelector('.tab-btn.connections').addEventListener('click', () => updateConnections());
     contextBridge.exposeInMainWorld('session', {
         start: async () => {
@@ -472,25 +389,11 @@ window.addEventListener('DOMContentLoaded', () => {
             ipcRenderer.on('session:disconnect', onDisconnect);
             ipcRenderer.on('session:request', onRequest);
             ipcRenderer.on('session:answer', onAnswer);
-            active = true;
+            return startConnection();
         },
         stop: async () => {
-            if (!active) return;
-            for (let peer of peers.connected.values()) {
-                let pc = peer?.pc;
-
-                pc.getSenders().forEach(sender => {
-                    if (sender.track) {
-                        sender.track.stop();
-                    }
-                });
-
-                pc.close();
-            }
-
-            peers.connected.clear();
-            peers.pending.clear();
-
+            if (!connection) return;
+            await connection.disconnectAll();
             await ipcRenderer.invoke('session:stop');
 
             stop.classList.add('hidden');
@@ -505,10 +408,10 @@ window.addEventListener('DOMContentLoaded', () => {
             ipcRenderer.removeListener('session:disconnect', onDisconnect);
             ipcRenderer.removeListener('session:request', onRequest);
             ipcRenderer.removeListener('session:answer', onAnswer);
-            active = false;
+            return endConnection();
         },
         copy: async () => {
-            if (!active) return;
+            if (!connection) return;
 
             input.select();
             document.execCommand('copy');
@@ -519,5 +422,18 @@ window.addEventListener('DOMContentLoaded', () => {
                 copy.textContent = getLabel('copyBtn');
             }, 1000);
         }
+    });
+
+    // Method dropdown change event
+    method.addEventListener('change', async () => {
+        // if method was changed to a different method, stop current connections
+        const current = (connection instanceof WebSocketConnection ? 'websocket' : 'webrtc');
+        if (method.value !== current || (method.value === 'auto' && current === 'websocket')) {
+            await window.session.stop();
+        }
+
+        ipcRenderer.invoke('settings:update', {
+            method: method.value
+        });
     });
 });
