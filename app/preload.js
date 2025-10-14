@@ -370,7 +370,7 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 
     document.querySelector('.tab-btn.connections').addEventListener('click', () => updateConnections());
-    contextBridge.exposeInMainWorld('session', {
+    const sessionBridge = {
         start: async () => {
             updateStatus(getLabel('waiting'), 'bg-yellow-500');
             start.innerHTML = getLabel('startingBtn');
@@ -422,14 +422,19 @@ window.addEventListener('DOMContentLoaded', () => {
                 copy.textContent = getLabel('copyBtn');
             }, 1000);
         }
-    });
+    };
+
+    contextBridge.exposeInMainWorld('session', sessionBridge);
 
     // Method dropdown change event
     method.addEventListener('change', async () => {
         // if method was changed to a different method, stop current connections
-        const current = (connection instanceof WebSocketConnection ? 'websocket' : 'webrtc');
-        if (method.value !== current || (method.value === 'auto' && current === 'websocket')) {
-            await window.session.stop();
+        if (connection) {
+            const current = (connection instanceof WebSocketConnection ? 'websocket' : 'webrtc');
+
+            if ((method.value !== current && method.value !== 'auto') || (method.value === 'auto' && current === 'websocket')) {
+                await sessionBridge.stop();
+            }
         }
 
         ipcRenderer.invoke('settings:update', {
