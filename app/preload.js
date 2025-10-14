@@ -194,7 +194,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     ipcRenderer.invoke(`nutjs:${message.name}`, message);
                 }
             } catch { };
-        }, async (state) => {
+        }, async (pc, state) => {
             // on state change
             await statusChange(state, sessionId); // update status, disconnect if needed
         });
@@ -222,7 +222,7 @@ window.addEventListener('DOMContentLoaded', () => {
         await connection.disconnect(sessionId);
 
         await ipcRenderer.invoke('session:disconnect', sessionId);
-        await statusChange("closed"); // must call statusChange to update status since it's an active connection, don't try to disconnect again
+        await statusChange("disconnected"); // must call statusChange to update status since it's an active connection, don't try to disconnect again
     };
 
     // Updates the connections list in the UI based on current connections and requests
@@ -275,14 +275,18 @@ window.addEventListener('DOMContentLoaded', () => {
     // Handles changes in the peer connection status
     async function statusChange(state, shouldDisconnect = null) {
         if (!connection) return;
-        if (["connected", "completed"].includes(state)) {
-            updateStatus(getLabel('connected'), 'bg-green-500');
-        } else if (["disconnected", "failed", "closed"].includes(state)) {
-            if (shouldDisconnect) await disconnect(shouldDisconnect);
 
-            if (Object.keys(connection.filterConnections('connected')).length === 0) {
-                updateStatus(getLabel('disconnected'), 'bg-red-500');
-            }
+        switch (state) {
+            case "connected":
+                updateStatus(getLabel('connected'), 'bg-green-500');
+                break;
+            case "disconnected":
+                if (shouldDisconnect) await disconnect(shouldDisconnect);
+
+                if (Object.keys(connection.filterConnections('connected')).length === 0) {
+                    updateStatus(getLabel('disconnected'), 'bg-red-500');
+                }
+                break;
         }
 
         return updateConnections();
@@ -309,7 +313,7 @@ window.addEventListener('DOMContentLoaded', () => {
         if (!connection) return;
 
         if (connection.isConnected(sessionId)) {
-            await statusChange("closed", sessionId); // update status, disconnect if needed (exactly as we would handle an onconnectionstatechange)
+            await statusChange("disconnected", sessionId); // update status, disconnect if needed (exactly as we would handle an onconnectionstatechange)
         } else if (connection.isPending(sessionId)) {
             connection.removeOffer(sessionId); // just remove from pending if not connected yet
             return updateConnections(); // no need to call statusChange since it was never an active connection

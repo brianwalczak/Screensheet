@@ -64,7 +64,7 @@ class WebRTCConnection {
         for (let [peerId, peer] of this.peers.connected.entries()) {
             let pc = peer?.pc;
 
-            if (status === "all" || filter.includes(pc.iceConnectionState)) {
+            if (status === "all" || filter.includes(pc.connectionState)) {
                 connections[peerId] = peer.meta;
             }
         }
@@ -108,7 +108,19 @@ class WebRTCConnection {
             }
         });
 
-        pc.onconnectionstatechange = () => onStateChange(pc.iceConnectionState);
+        pc.onconnectionstatechange = () => {
+            let state = pc.connectionState;
+
+            if (["connected", "completed"].includes(pc.connectionState)) {
+                state = "connected";
+            } else if (["disconnected", "failed", "closed"].includes(pc.connectionState)) {
+                state = "disconnected";
+            } else if(["new", "checking", "connecting"].includes(pc.connectionState)) {
+                state = "connecting";
+            }
+
+            return onStateChange(pc, state);
+        };
 
         return {
             sessionId: peerId,
