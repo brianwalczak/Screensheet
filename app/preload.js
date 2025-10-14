@@ -218,6 +218,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Disconnects an active viewer connection and cleans up
     async function disconnect(sessionId) {
+        if (!connection) return;
         await connection.disconnect(sessionId);
 
         await ipcRenderer.invoke('session:disconnect', sessionId);
@@ -230,34 +231,36 @@ window.addEventListener('DOMContentLoaded', () => {
         const none = document.querySelector('.connections .no_connections');
         list.innerHTML = '';
 
-        for (let [sessionId, meta] of connection.getPending().entries()) {
-            const item = document.querySelector('.connection_items .pending_item').cloneNode(true);
-            item.querySelector('.item_name').textContent = (meta.ip ?? sessionId);
+        if (connection) {
+            for (let [sessionId, meta] of connection.getPending().entries()) { 
+                const item = document.querySelector('.connection_items .pending_item').cloneNode(true);
+                item.querySelector('.item_name').textContent = (meta.ip ?? sessionId);
 
-            item.querySelector('.item_accept').addEventListener('click', async () => {
-                return approve(sessionId);
-            });
+                item.querySelector('.item_accept').addEventListener('click', async () => {
+                    return approve(sessionId);
+                });
 
-            item.querySelector('.item_decline').addEventListener('click', async () => {
-                return decline(sessionId);
-            });
+                item.querySelector('.item_decline').addEventListener('click', async () => {
+                    return decline(sessionId);
+                });
 
-            list.appendChild(item);
-        }
+                list.appendChild(item);
+            }
 
-        for (let [sessionId, meta] of Object.entries(connection.filterConnections('connected'))) {
-            const item = document.querySelector('.connection_items .active_item').cloneNode(true);
+            for (let [sessionId, meta] of Object.entries(connection.filterConnections('connected'))) {
+                const item = document.querySelector('.connection_items .active_item').cloneNode(true);
 
-            item.querySelector('.item_name').textContent = (meta?.ip ?? sessionId);
+                item.querySelector('.item_name').textContent = (meta?.ip ?? sessionId);
 
-            const minutesAgo = Math.floor((Date.now() - meta?.connectedAt) / 60000);
-            item.querySelector('.item_text').textContent = (minutesAgo === 0 ? getLabel('connectionsLabel').replace('{status}', 'just now') : getLabel('connectionsLabel').replace('{status}', `${minutesAgo}m ago`));
+                const minutesAgo = Math.floor((Date.now() - meta?.connectedAt) / 60000);
+                item.querySelector('.item_text').textContent = (minutesAgo === 0 ? getLabel('connectionsLabel').replace('{status}', 'just now') : getLabel('connectionsLabel').replace('{status}', `${minutesAgo}m ago`));
 
-            item.querySelector('.item_disconnect').addEventListener('click', async () => {
-                return disconnect(sessionId);
-            });
+                item.querySelector('.item_disconnect').addEventListener('click', async () => {
+                    return disconnect(sessionId);
+                });
 
-            list.appendChild(item);
+                list.appendChild(item);
+            }
         }
 
         if (list.children.length === 0) {
