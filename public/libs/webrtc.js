@@ -58,6 +58,7 @@ class WebRTCConnection {
     disconnect() {
         this.screenSize = null;
         this.channel = null;
+        this.eventsReady = false;
 
         this.pc.close();
         this.pc = new RTCPeerConnection();

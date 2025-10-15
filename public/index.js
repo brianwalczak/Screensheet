@@ -50,7 +50,7 @@ function errorCode(code) {
 socket.on('error', (code) => { errorCode(code); });
 socket.on('session:offer', async (data) => {
     if (data.declined) return errorCode(403);
-    connection = data.type === 'websocket' ? new WebSocketConnection() : new WebRTCConnection();
+    connection = data.type === 'websocket' ? new WebSocketConnection(socket) : new WebRTCConnection();
 
     const handshake = await connection.acceptOffer(data.offer, onDisconnect);
     socket.emit('session:answer', handshake);
