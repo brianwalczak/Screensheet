@@ -4,10 +4,12 @@ const error_container = document.querySelector('#error-message');
 const video_container = document.querySelector('#video-container');
 const error = document.querySelector('#error-text');
 const video = document.querySelector('#video-container video');
-let pc = new RTCPeerConnection();
+
+import WebRTCConnection from './libs/webrtc.js';
+import WebSocketConnection from './libs/websocket.js';
+
+let connection; // the current connection instance (WebRTC or WebSocket)
 const socket = io();
-let screenSize;
-let channel;
 
 input.addEventListener('input', (e) => {
     e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -16,7 +18,7 @@ input.addEventListener('input', (e) => {
 
 input.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
-        connection();
+        startConnection();
     }
 });
 
@@ -48,46 +50,16 @@ function errorCode(code) {
 socket.on('error', (code) => { errorCode(code); });
 socket.on('session:offer', async (data) => {
     if (data.declined) return errorCode(403);
+    connection = data.type === 'websocket' ? new WebSocketConnection() : new WebRTCConnection();
 
-    pc.ontrack = (event) => {
-        video_container.classList.remove('hidden');
-        video.srcObject = event.streams[0];
-    };
-
-    await pc.setRemoteDescription(data.offer);
-
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-
-    socket.emit('session:answer', {
-        type: pc.localDescription.type,
-        sdp: pc.localDescription.sdp
-    });
-
-    pc.ondatachannel = (event) => {
-        event.channel.onmessage = (e) => {
-            try {
-                const message = JSON.parse(e.data);
-
-                if (message.width && message.height) {
-                    screenSize = { width: message.width, height: message.height };
-                    channel = event.channel;
-                }
-            } catch { };
-        };
-    };
-
-    pc.onconnectionstatechange = async () => {
-        if (["disconnected", "failed", "closed"].includes(pc.connectionState)) {
-            onDisconnect();
-        }
-    };
+    const handshake = await connection.acceptOffer(data.offer, onDisconnect);
+    socket.emit('session:answer', handshake);
 
     connect.textContent = 'Connect';
     connect.disabled = false;
 });
 
-async function connection() {
+async function startConnection() {
     const code = input.value.trim();
 
     if (code.length !== 8) {
@@ -100,14 +72,11 @@ async function connection() {
     socket.emit('session:request', code);
 }
 
-function onDisconnect() {
+async function onDisconnect() {
     video_container.classList.add('hidden');
     input.value = '';
-    screenSize = null;
-    channel = null;
 
-    pc.close();
-    pc = new RTCPeerConnection();
+    connection.disconnect();
     return errorCode(410);
 }
 
@@ -119,8 +88,8 @@ function calculatePos(event) {
         const videoOffset = video.getBoundingClientRect();
         const xRelativeToVideo = event.clientX - videoOffset.left;
         const yRelativeToVideo = event.clientY - videoOffset.top;
-        const xInScreen = (xRelativeToVideo / video.clientWidth) * screenSize.width;
-        const yInScreen = (yRelativeToVideo / video.clientHeight) * screenSize.height;
+        const xInScreen = (xRelativeToVideo / video.clientWidth) * connection.screenSize.width;
+        const yInScreen = (yRelativeToVideo / video.clientHeight) * connection.screenSize.height;
 
         return { x: xInScreen, y: yInScreen };
     } catch {
@@ -129,7 +98,7 @@ function calculatePos(event) {
 }
 
 const mouseEvent = (event) => {
-    if (!channel || channel?.readyState !== 'open') return;
+    if (!connection.eventsReady) return;
     event.preventDefault();
 
     try {
@@ -140,13 +109,13 @@ const mouseEvent = (event) => {
             const button = event.which === 1 || event.button === 0 ? 'LEFT' : event.which === 3 || event.button === 2 ? 'RIGHT' : null;
             if (button) { data.button = button } else { return; };
         }
-
-        channel.send(JSON.stringify(data));
+        
+        connection.sendEvent(data);
     } catch { };
 };
 
 const keyEvent = (event) => {
-    if (!channel || channel?.readyState !== 'open') return;
+    if (!connection.eventsReady) return;
     event.preventDefault();
 
     try {
@@ -158,7 +127,7 @@ const keyEvent = (event) => {
             relyingKey: event.altKey || event.ctrlKey || event.metaKey || event.shiftKey
         };
 
-        channel.send(JSON.stringify({ name: 'keyboard', method: event.type, event: keyInfo }));
+        connection.sendEvent({ name: 'keyboard', method: event.type, event: keyInfo });
     } catch { };
 };
 
@@ -174,3 +143,4 @@ window.addEventListener('keydown', keyEvent); // key was pressed down
 window.addEventListener('keyup', keyEvent); // key was lifted up
 
 input.focus();
+window.startConnection = startConnection;

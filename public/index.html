@@ -31,7 +31,7 @@
                         maxlength="8">
                 </div>
 
-                <button id="connect-btn" onclick="connection()"
+                <button id="connect-btn" onclick="startConnection()"
                     class="cursor-pointer w-full bg-gray-900 hover:bg-gray-800 text-white font-medium py-3 rounded-lg transition-colors duration-200 mb-4">
                     Connect</button>
 
@@ -52,7 +52,8 @@
                 </div>
             </div>
 
-            <div id="video-container" class="cursor-none fixed inset-0 z-40 flex items-center justify-center bg-black bg-opacity-80 hidden">
+            <div id="video-container"
+                class="cursor-none fixed inset-0 z-40 flex items-center justify-center bg-black bg-opacity-80 hidden">
                 <video class="max-w-full max-h-full object-contain" playsinline autoplay nocontrols></video>
             </div>
 
@@ -63,7 +64,7 @@
     </main>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="index.js" type="text/javascript"></script>
+    <script src="index.js" type="module"></script>
 </body>
 
 </html>

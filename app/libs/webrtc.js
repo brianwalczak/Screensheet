@@ -124,6 +124,7 @@ class WebRTCConnection {
 
         return {
             sessionId: peerId,
+            type: "webrtc",
             offer: {
                 type: pc.localDescription.type,
                 sdp: pc.localDescription.sdp
