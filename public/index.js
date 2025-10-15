@@ -85,6 +85,8 @@ socket.on('session:disconnect', onDisconnect);
 // -- Handle Keyboard + Mouse -- //
 function calculatePos(event) {
     try {
+        if (!connection || !connection.screenSize) return { x: 0, y: 0 };
+        
         const videoOffset = video.getBoundingClientRect();
         const xRelativeToVideo = event.clientX - videoOffset.left;
         const yRelativeToVideo = event.clientY - videoOffset.top;
@@ -98,7 +100,7 @@ function calculatePos(event) {
 }
 
 const mouseEvent = (event) => {
-    if (!connection.eventsReady) return;
+    if (!connection || !connection.eventsReady || !connection.screenSize) return;
     event.preventDefault();
 
     try {
@@ -115,7 +117,7 @@ const mouseEvent = (event) => {
 };
 
 const keyEvent = (event) => {
-    if (!connection.eventsReady) return;
+    if (!connection || !connection.eventsReady || !connection.screenSize) return;
     event.preventDefault();
 
     try {

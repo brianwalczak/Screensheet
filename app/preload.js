@@ -202,7 +202,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             } catch { };
-        }, async (pc, state) => {
+        }, async (state) => {
             // on state change
             await statusChange(state, sessionId); // update status, disconnect if needed
         });

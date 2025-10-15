@@ -19,8 +19,12 @@ class WebSocketConnection {
 
         this._disconnectHandler = onDisconnect;
 
-        this.socket.on('stream_data', (data) => {
-            // we'll handle video and audio here whenever we get to it
+        this.socket.on('stream:frame', (frameData) => {
+            console.log('Received frame data:', frameData);
+        });
+
+        this.socket.on('stream:audio', (audioData) => {
+            console.log('Received audio data:', audioData);
         });
 
         this.socket.on('session:disconnect', () => {
@@ -45,7 +49,8 @@ class WebSocketConnection {
         this.eventsReady = false;
         this._disconnectHandler = null;
 
-        this.socket.off('stream_data');
+        this.socket.off('stream:frame');
+        this.socket.off('stream:audio');
         this.socket.off('session:disconnect');
         return true;
     }

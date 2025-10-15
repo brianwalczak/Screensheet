@@ -115,7 +115,7 @@ class WebRTCConnection {
                 state = "connecting";
             }
 
-            return onStateChange(pc, state);
+            return onStateChange(state);
         };
 
         return {
