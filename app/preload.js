@@ -1,4 +1,5 @@
 const { contextBridge, ipcRenderer } = require('electron');
+const { mouseEvent, keyboardEvent } = require('../remote.js');
 const { getLabel, findMatching } = require('./translations.js');
 const WebRTCConnection = require('./libs/webrtc.js');
 const WebSocketConnection = require('./libs/websocket.js');
@@ -191,7 +192,14 @@ window.addEventListener('DOMContentLoaded', () => {
                 const message = JSON.parse(e.data);
 
                 if (message.name && message.method && control.checked) { // only allow control if enabled
-                    ipcRenderer.invoke(`nutjs:${message.name}`, message);
+                    switch (message.name) {
+                        case 'mouse':
+                            mouseEvent(message);
+                            break;
+                        case 'keyboard':
+                            keyboardEvent(message);
+                            break;
+                    }
                 }
             } catch { };
         }, async (pc, state) => {

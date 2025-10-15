@@ -118,42 +118,6 @@ ipcMain.handle('session:disconnect', async (event, sessionId) => {
     }
 });
 
-// -- Remote Control -- //
-
-// Handles mouse events, repeated by the host from viewer input
-ipcMain.handle('nutjs:mouse', async (event, data) => {
-    try {
-        const { x, y, method } = data;
-        await mouse.move(new Point(x, y));
-
-        if (data?.button && (method === 'mousedown' || method === 'mouseup')) {
-            const type = (method === 'mousedown' ? 'pressButton' : 'releaseButton');
-            await mouse[type](Button[data.button]);
-        }
-    } catch { };
-});
-
-// Handles keyboard events, repeated by the host from viewer input
-ipcMain.handle('nutjs:keyboard', async (event, data) => {
-    try {
-        const { method, event } = data;
-
-        if (method === 'keydown') {
-            if (event.key.length === 1 && !event.relyingKey) { // type
-                await keyboard.type(event.key);
-            } else { // key press or release
-                const key = keymaps[event.code];
-                if (key) await keyboard.pressKey(Key[key]);
-            }
-        } else if (method === 'keyup') {
-            if (event.key.length !== 1 || (event.key.length === 1 && event.relyingKey)) { // key release only
-                const key = keymaps[event.code];
-                if (key) await keyboard.releaseKey(Key[key]);
-            }
-        }
-    } catch { };
-});
-
 // -- Settings Management -- //
 
 // Load settings from file and return to host
