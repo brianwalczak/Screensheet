@@ -14,10 +14,6 @@ class WebRTCConnection {
         return dst.stream.getAudioTracks()[0];
     })();
 
-    getConnections() {
-        return this.peers.connected;
-    }
-
     getPending() {
         return this.peers.pending;
     }

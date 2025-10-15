@@ -1,6 +1,5 @@
-const { screen, mouse, keyboard, Key, Button, Point } = require("@nut-tree-fork/nut-js");
+const { screen } = require("@nut-tree-fork/nut-js");
 const { app: electron, BrowserWindow, ipcMain, desktopCapturer } = require('electron');
-const keymaps = require('./keymaps');
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
