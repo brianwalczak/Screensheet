@@ -3,7 +3,7 @@ const connect = document.querySelector('#connect-btn');
 const error_container = document.querySelector('#error-message');
 const video_container = document.querySelector('#video-container');
 const error = document.querySelector('#error-text');
-const video = document.querySelector('#video-container video');
+const canvas = document.querySelector('#video-container canvas');
 
 import WebRTCConnection from './libs/webrtc.js';
 import WebSocketConnection from './libs/websocket.js';
@@ -87,11 +87,11 @@ function calculatePos(event) {
     try {
         if (!connection || !connection.screenSize) return { x: 0, y: 0 };
         
-        const videoOffset = video.getBoundingClientRect();
+        const videoOffset = canvas.getBoundingClientRect();
         const xRelativeToVideo = event.clientX - videoOffset.left;
         const yRelativeToVideo = event.clientY - videoOffset.top;
-        const xInScreen = (xRelativeToVideo / video.clientWidth) * connection.screenSize.width;
-        const yInScreen = (yRelativeToVideo / video.clientHeight) * connection.screenSize.height;
+        const xInScreen = (xRelativeToVideo / canvas.clientWidth) * connection.screenSize.width;
+        const yInScreen = (yRelativeToVideo / canvas.clientHeight) * connection.screenSize.height;
 
         return { x: xInScreen, y: yInScreen };
     } catch {
@@ -133,12 +133,12 @@ const keyEvent = (event) => {
     } catch { };
 };
 
-video.addEventListener('contextmenu', (e) => e.preventDefault());
+canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
 // -- Mouse Input -- //
-video.addEventListener('mousemove', mouseEvent); // mouse was moved
-video.addEventListener('mousedown', mouseEvent); // mouse button was pressed down
-video.addEventListener('mouseup', mouseEvent); // mouse button was lifted up
+canvas.addEventListener('mousemove', mouseEvent); // mouse was moved
+canvas.addEventListener('mousedown', mouseEvent); // mouse button was pressed down
+canvas.addEventListener('mouseup', mouseEvent); // mouse button was lifted up
 
 // -- Keyboard Input -- //
 window.addEventListener('keydown', keyEvent); // key was pressed down

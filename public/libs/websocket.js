@@ -1,5 +1,5 @@
 const video_container = document.querySelector('#video-container');
-const video = document.querySelector('#video-container video');
+const canvas = document.querySelector('#video-container canvas');
 
 class WebSocketConnection {
     constructor(socket = null) {
@@ -19,8 +19,15 @@ class WebSocketConnection {
 
         this._disconnectHandler = onDisconnect;
 
-        this.socket.on('stream:frame', (frameData) => {
-            console.log('Received frame data:', frameData);
+        this.socket.on('stream:frame', (frame) => {
+            canvas.width = frame.width;
+            canvas.height = frame.height;
+
+            const ctx = canvas.getContext('2d');
+            const imageData = ctx.createImageData(frame.width, frame.height);
+
+            imageData.data.set(new Uint8ClampedArray(frame.data));
+            ctx.putImageData(imageData, 0, 0);
         });
 
         this.socket.on('stream:audio', (audioData) => {
@@ -31,7 +38,8 @@ class WebSocketConnection {
             if (this._disconnectHandler) this._disconnectHandler();
         });
 
-        return { accepted: true };
+        video_container.classList.remove('hidden');
+        return { accepted: true, type: 'websocket' };
     }
 
     // Send a remote control event to the server directly (no need to relay via peer)
