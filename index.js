@@ -91,6 +91,12 @@ ipcMain.handle('stream:frame', async (event, frame) => {
     }
 });
 
+ipcMain.handle('stream:audio', async (event, chunk) => {
+    for (let socketId of ws) {
+        io.to(socketId).volatile.emit('stream:audio', chunk);
+    }
+});
+
 // -- Session Management -- //
 
 // Start a new session and generate a new session code

@@ -1,5 +1,6 @@
 const { ipcRenderer } = require('electron');
 const StreamFrames = require("./frames.js");
+const StreamAudio = require("./audio.js");
 
 class WebSocketConnection {
     constructor() {
@@ -9,6 +10,7 @@ class WebSocketConnection {
         };
 
         this.frames = null;
+        this.audio = null;
     }
 
     getPending() {
@@ -64,6 +66,12 @@ class WebSocketConnection {
             await ipcRenderer.invoke('stream:frame', frame);
         });
 
+        if (enableAudio) {
+            this.audio = new StreamAudio(display, async (chunk) => {
+                await ipcRenderer.invoke('stream:audio', chunk);
+            });
+        }
+
         return {
             sessionId: socketId,
             type: "websocket",
@@ -79,8 +87,17 @@ class WebSocketConnection {
         return true;
     }
 
-    // Audio control not needed for websocket (server handles streaming)
-    async updateAudio() {
+    // Allows audio sharing for websocket connections based on whether audio sharing is enabled
+    async updateAudio(enableAudio, { display }) {
+        if (enableAudio && !this.audio && display) {
+            this.audio = new StreamAudio(display, async (chunk) => {
+                await ipcRenderer.invoke('stream:audio', chunk);
+            });
+        } else if (!enableAudio && this.audio) {
+            this.audio.stop();
+            this.audio = null;
+        }
+        
         return true;
     }
 
@@ -90,6 +107,7 @@ class WebSocketConnection {
         this.peers.connected.delete(socketId);
 
         if (this.frames) this.frames.stop() && (this.frames = null);
+        if (this.audio) this.audio.stop() && (this.audio = null);
         return true;
     }
 
@@ -99,6 +117,7 @@ class WebSocketConnection {
         this.peers.pending.clear();
 
         if (this.frames) this.frames.stop() && (this.frames = null);
+        if (this.audio) this.audio.stop() && (this.audio = null);
         return true;
     }
 }
