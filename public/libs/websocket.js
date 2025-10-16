@@ -1,5 +1,6 @@
 const video_container = document.querySelector('#video-container');
 const canvas = document.querySelector('#video-container canvas');
+const ctx = canvas.getContext("2d");
 
 class WebSocketConnection {
     constructor(socket = null) {
@@ -19,15 +20,22 @@ class WebSocketConnection {
 
         this._disconnectHandler = onDisconnect;
 
-        this.socket.on('stream:frame', (frame) => {
-            canvas.width = frame.width;
-            canvas.height = frame.height;
+        this.socket.on('stream:frame', async (data) => {
+            let arrayBuffer;
+            if (data instanceof ArrayBuffer) {
+                arrayBuffer = data;
+            } else if (data.buffer) {
+                arrayBuffer = data.buffer;
+            } else {
+                arrayBuffer = new Uint8Array(data).buffer;
+            }
 
-            const ctx = canvas.getContext('2d');
-            const imageData = ctx.createImageData(frame.width, frame.height);
+            const blob = new Blob([arrayBuffer], { type: "image/jpeg" });
+            const bitmap = await createImageBitmap(blob);
 
-            imageData.data.set(new Uint8ClampedArray(frame.data));
-            ctx.putImageData(imageData, 0, 0);
+            canvas.width = bitmap.width;
+            canvas.height = bitmap.height;
+            ctx.drawImage(bitmap, 0, 0);
         });
 
         this.socket.on('stream:audio', (audioData) => {

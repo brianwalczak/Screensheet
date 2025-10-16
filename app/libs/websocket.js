@@ -1,9 +1,14 @@
+const { ipcRenderer } = require('electron');
+const StreamFrames = require("./frames.js");
+
 class WebSocketConnection {
     constructor() {
         this.peers = {
             connected: new Map(), // stores active socket connections
             pending: new Map() // stores pending connection requests
         };
+
+        this.frames = null;
     }
 
     getPending() {
@@ -47,13 +52,17 @@ class WebSocketConnection {
     }
 
     // Accepts an offer from a viewer and creates a new websocket connection
-    async acceptOffer(socketId, { screenSize }, enableAudio, onMessage, onStateChange) {
+    async acceptOffer(socketId, { display, screenSize }, enableAudio, onMessage, onStateChange) {
         let meta = this.peers.pending.get(socketId);
         if (!meta) return null;
 
         this.removeOffer(socketId); // remove from wait list
         this.peers.connected.set(socketId, { connectedAt: Date.now(), ip: meta?.ip });
         onStateChange("connected");
+
+        this.frames = new StreamFrames(display, 20, async (frame) => {
+            await ipcRenderer.invoke('stream:frame', frame);
+        });
 
         return {
             sessionId: socketId,
@@ -80,6 +89,7 @@ class WebSocketConnection {
         if (!this.peers.connected.has(socketId)) return null;
         this.peers.connected.delete(socketId);
 
+        if (this.frames) this.frames.stop() && (this.frames = null);
         return true;
     }
 
@@ -88,6 +98,7 @@ class WebSocketConnection {
         this.peers.connected.clear();
         this.peers.pending.clear();
 
+        if (this.frames) this.frames.stop() && (this.frames = null);
         return true;
     }
 }

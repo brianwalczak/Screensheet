@@ -1,5 +1,6 @@
 const { screen } = require("@nut-tree-fork/nut-js");
 const { app: electron, BrowserWindow, ipcMain, desktopCapturer } = require('electron');
+const { mouseEvent, keyboardEvent } = require('./remote');
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
@@ -13,6 +14,8 @@ let activeCode = null;
 let settings;
 let window;
 let server;
+
+let ws = new Set();
 
 electron.commandLine.appendSwitch('enable-logging');
 
@@ -82,6 +85,12 @@ ipcMain.handle('display', async (event) => {
     }
 });
 
+ipcMain.handle('stream:frame', async (event, frame) => {
+    for (let socketId of ws) {
+        io.to(socketId).volatile.emit('stream:frame', frame);
+    }
+});
+
 // -- Session Management -- //
 
 // Start a new session and generate a new session code
@@ -95,6 +104,7 @@ ipcMain.handle('session:start', async (event) => {
 // Stop the current session (invalidate the session code)
 ipcMain.handle('session:stop', async (event) => {
     activeCode = null;
+    ws.clear();
 
     return true;
 });
@@ -113,6 +123,10 @@ ipcMain.handle('session:response', async (event, { sessionId, offer, type, decli
 // Sends a disconnect signal to the viewer to end the session
 ipcMain.handle('session:disconnect', async (event, sessionId) => {
     if (sessionId) {
+        if (ws.has(sessionId)) {
+            ws.delete(sessionId);
+        }
+
         io.to(sessionId).emit('session:disconnect');
     }
 });
@@ -167,10 +181,30 @@ io.on('connection', (socket) => {
     // Repeat session answers from viewer to host when establishing a connection (AFTER approval)
     socket.on('session:answer', (answer) => {
         window.webContents.send('session:answer', { sessionId, answer });
+
+        if (answer.type === 'websocket') {
+            ws.add(sessionId);
+        }
+    });
+
+    socket.on('nutjs:mouse', (data) => {
+        if (!ws.has(sessionId) || !settings.control) return;
+
+        mouseEvent(data);
+    });
+
+    socket.on('nutjs:keyboard', (data) => {
+        if (!ws.has(sessionId) || !settings.control) return;
+
+        keyboardEvent(data);
     });
 
     // Remove peer connection when viewer disconnects
     socket.on('disconnect', () => {
+        if (ws.has(sessionId)) {
+            ws.delete(sessionId);
+        }
+        
         window.webContents.send('session:disconnect', sessionId);
     });
 });
