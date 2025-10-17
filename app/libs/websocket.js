@@ -62,12 +62,14 @@ class WebSocketConnection {
         this.peers.connected.set(socketId, { connectedAt: Date.now(), ip: meta?.ip });
         onStateChange("connected");
 
-        this.frames = new StreamFrames(display, 20, async (frame) => {
+        const screen = await ipcRenderer.invoke('display');
+        
+        this.frames = await StreamFrames.create(screen, async (frame) => {
             await ipcRenderer.invoke('stream:frame', frame);
         });
 
         if (enableAudio) {
-            this.audio = new StreamAudio(display, async (chunk) => {
+            this.audio = new StreamAudio(screen, async (chunk) => {
                 await ipcRenderer.invoke('stream:audio', chunk);
             });
         }
@@ -77,7 +79,8 @@ class WebSocketConnection {
             type: "websocket",
             offer: {
                 width: screenSize.width,
-                height: screenSize.height
+                height: screenSize.height,
+                codec: this.frames.codec
             }
         };
     }
