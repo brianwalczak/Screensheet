@@ -1,5 +1,5 @@
 <h1 align="center">Screensheet - The local remote desktop.</h1>
-<p align="center">A Node.js application that allows you to use your device from anywhere with remote desktop, powered by WebRTC and Electron.</p>
+<p align="center">A Node.js application that allows you to use your device from anywhere with remote desktop, powered by WebRTC, Socket.IO, and Electron.</p>
 
 > [!WARNING]
 > **This project is currently in its beta state as I gather user feedback. If you encounter any issues, please report them <a href='https://github.com/BrianWalczak/Screensheet/issues'>here</a> :)**
@@ -7,7 +7,8 @@
 ## Features
 - (🖥️) Instantly share your desktop remotely with a secure, 8-digit connection code.
 - (⚡) No account or signup required - start a session in seconds, right on your network.
-- (🌐) Web-based viewer for easy access from any device, powered by WebRTC.
+- (🌐) Web-based viewer for easy access from any device, powered by WebRTC/WebSockets.
+- (📶) Multi-protocol support allows you to switch between WebRTC and WebSockets effortlessly.
 - (⌨️) Real-time keyboard and mouse input forwarding that can be enabled or disabled.
 - (🔊) Optional device audio sharing that can be enabled or disabled.
 - (👥) View, accept, decline, and disconnect visitors with ease.
@@ -23,7 +24,7 @@ https://github.com/user-attachments/assets/6da21f83-a8d9-4db9-8018-6e96a9e43ac0
 ### Viewing a Session
 https://github.com/user-attachments/assets/45157dbe-762e-4b7a-8ae8-21c9e709c807
 
-### Theme: Magic! ✨
+### Magic Mode ✨
 https://github.com/user-attachments/assets/647269da-ff69-462d-8de6-e7c57b2ed7d8
 
 
