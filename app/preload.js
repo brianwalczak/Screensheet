@@ -341,6 +341,20 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Audio toggle switch event
     audioToggle.addEventListener('click', async () => {
+        let restart = false;
+
+        if (connection && display) {
+            const attempt = await connection.updateAudio((!audio.checked), { display });
+            
+            if (method.value === 'websocket') {
+                if(attempt) {
+                    restart = true;
+                } else {
+                    return;
+                }
+            }
+        }
+
         audio.checked = (!audio.checked);
 
         ipcRenderer.invoke('settings:update', {
@@ -349,8 +363,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
         toggleChange(audioToggle, audio.checked);
 
-        if (connection && display) {
-            await connection.updateAudio(audio.checked, { display });
+        if (restart && connection) {
+            await sessionBridge.stop();
+            return await sessionBridge.start(true); // force audio
         }
     });
 
@@ -386,7 +401,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
     document.querySelector('.tab-btn.connections').addEventListener('click', () => updateConnections());
     const sessionBridge = {
-        start: async () => {
+        start: async (forceAudio = false) => {
+            if (!forceAudio && method.value === 'websocket' && audio.checked) audioToggle.click(); // disable audio if enabled, unless forced
+
             updateStatus(getLabel('waiting'), 'bg-yellow-500');
             start.innerHTML = getLabel('startingBtn');
 

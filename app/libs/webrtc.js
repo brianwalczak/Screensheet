@@ -154,6 +154,8 @@ class WebRTCConnection {
                 }
             }
         }
+
+        return true;
     }
 
     // Disconnects a specific peer connection
