@@ -1,6 +1,5 @@
 const video_container = document.querySelector('#video-container');
-const canvas = document.querySelector('#video-container canvas');
-const ctx = canvas.getContext("2d");
+const video = document.querySelector('#video-container video');
 
 class WebSocketConnection {
     constructor(socket = null) {
@@ -20,22 +19,18 @@ class WebSocketConnection {
 
         this._disconnectHandler = onDisconnect;
 
+        const mediaSource = new MediaSource();
+        let sourceBuffer = null;    
+
+        mediaSource.addEventListener('sourceopen', () => {
+            sourceBuffer = mediaSource.addSourceBuffer('video/webm; codecs=vp8,opus');
+            video.src = URL.createObjectURL(mediaSource);
+        });
+
         this.socket.on('stream:frame', async (data) => {
-            let arrayBuffer;
-            if (data instanceof ArrayBuffer) {
-                arrayBuffer = data;
-            } else if (data.buffer) {
-                arrayBuffer = data.buffer;
-            } else {
-                arrayBuffer = new Uint8Array(data).buffer;
+            if (sourceBuffer && !sourceBuffer.updating) {
+                sourceBuffer.appendBuffer(data.chunk);
             }
-
-            const blob = new Blob([arrayBuffer], { type: "image/jpeg" });
-            const bitmap = await createImageBitmap(blob);
-
-            canvas.width = bitmap.width;
-            canvas.height = bitmap.height;
-            ctx.drawImage(bitmap, 0, 0);
         });
 
         this.socket.on('stream:audio', (audioData) => {

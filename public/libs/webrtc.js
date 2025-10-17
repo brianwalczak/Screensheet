@@ -1,6 +1,5 @@
 const video_container = document.querySelector('#video-container');
 const video = document.querySelector('#video-container video');
-const canvas = document.querySelector('#video-container canvas');
 
 class WebRTCConnection {
     constructor() {
@@ -15,19 +14,6 @@ class WebRTCConnection {
         this.pc.ontrack = (event) => {
             video_container.classList.remove('hidden');
             video.srcObject = event.streams[0];
-
-            const ctx = canvas.getContext("2d");
-
-            video.addEventListener('loadedmetadata', () => {
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                drawFrame();
-            });
-
-            function drawFrame() {
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                video.requestVideoFrameCallback(drawFrame);
-            }
         };
 
         await this.pc.setRemoteDescription(offer);
