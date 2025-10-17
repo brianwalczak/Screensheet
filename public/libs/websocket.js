@@ -20,16 +20,17 @@ class WebSocketConnection {
         this._disconnectHandler = onDisconnect;
 
         const mediaSource = new MediaSource();
-        let sourceBuffer = null;    
-
+        let sourceBuffer = null;
+        
+        video.src = URL.createObjectURL(mediaSource);
         mediaSource.addEventListener('sourceopen', () => {
-            sourceBuffer = mediaSource.addSourceBuffer('video/webm; codecs=vp8,opus');
-            video.src = URL.createObjectURL(mediaSource);
+            if (!offer.codec) return alert('Whoops, looks like your browser does not support the required codec!');
+            sourceBuffer = mediaSource.addSourceBuffer(offer.codec);
         });
 
-        this.socket.on('stream:frame', async (data) => {
+        this.socket.on('stream:frame', async (chunk) => {
             if (sourceBuffer && !sourceBuffer.updating) {
-                sourceBuffer.appendBuffer(data.chunk);
+                sourceBuffer.appendBuffer(chunk);
             }
         });
 
