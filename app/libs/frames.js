@@ -1,5 +1,5 @@
 class StreamFrames {
-    constructor(screen, callback, enableAudio = false) {
+    constructor(screen, callback, enableAudio) {
         this.config = {
             fps: 15,
             bitrate: 500000,
@@ -13,8 +13,8 @@ class StreamFrames {
         this.codec = null;
     }
 
-    static async create(screen, callback) {
-        const instance = new StreamFrames(screen, callback);
+    static async create(screen, callback, enableAudio = false) {
+        const instance = new StreamFrames(screen, callback, enableAudio);
         await instance.start();
 
         return instance;
