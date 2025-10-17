@@ -19,7 +19,7 @@
 ## Demonstration
 
 ### Creating a Session
-https://github.com/user-attachments/assets/6da21f83-a8d9-4db9-8018-6e96a9e43ac0
+https://github.com/user-attachments/assets/ce5c4689-de2f-4659-b947-097dce9cdb4a
 
 ### Viewing a Session
 https://github.com/user-attachments/assets/45157dbe-762e-4b7a-8ae8-21c9e709c807
