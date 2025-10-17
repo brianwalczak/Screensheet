@@ -1,74 +1,106 @@
 class StreamFrames {
-    constructor(display, fps, callback) {
-        this.video = null;
-        this.canvas = null;
-        this.ctx = null;
-        this.fps = fps || 30;
-        this.callback = callback;
+    constructor(screen, callback, enableAudio = false) {
+        this.config = {
+            fps: 15,
+            bitrate: 500000,
+            timeslice: 50,
+            callback: callback
+        };
 
-        this.animationId = null;
-        this.lastTime = 0;
-        this.isProcessing = false;
-
-        this.start(display);
+        this.mediaRecorder = null;
+        this.enableAudio = enableAudio;
+        this.screen = screen;
+        this.codec = null;
     }
 
-    start(display) {
-        this.video = document.createElement("video");
-        this.video.srcObject = display;
+    static async create(screen, callback) {
+        const instance = new StreamFrames(screen, callback);
+        await instance.start();
 
-        this.video.addEventListener("loadedmetadata", () => {
-            this.canvas = document.createElement("canvas");
-            this.canvas.width = this.video.videoWidth;
-            this.canvas.height = this.video.videoHeight;
-            this.ctx = this.canvas.getContext("2d");
+        return instance;
+    }
 
-            this.video.play();
-            this.lastTime = performance.now();
+    async start() {
+        if (!this.stream && this.screen) {
+            this.stream = await navigator.mediaDevices.getUserMedia({
+                audio: this.enableAudio ? {
+                    mandatory: {
+                        chromeMediaSource: 'desktop',
+                    }
+                } : false,
+                video: {
+                    mandatory: {
+                        chromeMediaSource: 'desktop',
+                        chromeMediaSourceId: this.screen.display[0].id,
+                        frameRate: { ideal: this.config.fps, max: this.config.fps },
+                        minWidth: this.screen.width,
+                        minHeight: this.screen.height,
+                        maxWidth: this.screen.width,
+                        maxHeight: this.screen.height,
+                    },
+                },
+            });
+        }
 
-            const renderFrame = async (time) => {
-                if (!this.video || !this.ctx || !this.canvas) return;
+        const mimeTypes = this.enableAudio ? [
+            'video/webm;codecs=vp8,opus',
+            'video/webm;codecs=h264,opus',
+            'video/webm;codecs=avc1,opus',
+            'video/webm;codecs=vp9,opus',
+            'video/mp4;codecs=avc1,mp4a.40.2'
+        ] : [
+            'video/webm;codecs=vp8',
+            'video/webm;codecs=h264',
+            'video/webm;codecs=avc1',
+            'video/webm;codecs=vp9',
+            'video/mp4;codecs=avc1'
+        ];
 
-                if (time - this.lastTime >= (1000 / this.fps) && !this.isProcessing) {
-                    this.isProcessing = true;
-                    this.ctx.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
+        for (const mimeType of mimeTypes) {
+            if (MediaRecorder.isTypeSupported(mimeType)) {
+                this.codec = mimeType;
+                break;
+            }
+        }
 
-                    const frame = await new Promise(resolve => {
-                        this.canvas.toBlob(blob => {
-                            if (blob) {
-                                blob.arrayBuffer().then(buffer => resolve(buffer));
-                            } else {
-                                resolve(null);
-                            }
-                        }, "image/jpeg", 0.7);
-                    });
+        if (!this.codec) {
+            throw new Error('No supported video codec found');
+        }
 
-                    if (frame) await this.callback(frame);
-                    this.lastTime = time;
-                    this.isProcessing = false;
-                }
-
-                this.animationId = requestAnimationFrame(renderFrame);
-            };
-
-            this.animationId = requestAnimationFrame(renderFrame);
+        this.mediaRecorder = new MediaRecorder(this.stream, {
+            mimeType: this.codec,
+            videoBitsPerSecond: this.config.bitrate
         });
+
+        this.mediaRecorder.ondataavailable = async (event) => {
+            if (event.data && event.data.size > 0) {
+                const arrayBuffer = await event.data.arrayBuffer();
+
+                await this.config.callback(arrayBuffer);
+            }
+        };
+
+        this.mediaRecorder.onerror = (error) => {
+            this.stop();
+            throw new Error(error);
+        };
+
+        this.mediaRecorder.start(this.config.timeslice);
     }
 
     stop() {
-        if (this.animationId) {
-            cancelAnimationFrame(this.animationId);
-            this.animationId = null;
+        if (this.mediaRecorder) {
+            this.mediaRecorder.stop();
+            this.mediaRecorder = null;
         }
 
-        if (this.video) {
-            this.video.pause();
-            this.video.srcObject = null;
-            this.video = null;
+        if (this.stream) {
+            this.stream.getTracks().forEach(track => track.stop());
+            this.stream = null;
         }
 
-        this.canvas = null;
-        this.ctx = null;
+        this.codec = null;
+        return true;
     }
 }
 
