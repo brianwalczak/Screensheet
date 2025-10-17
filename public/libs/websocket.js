@@ -34,10 +34,6 @@ class WebSocketConnection {
             }
         });
 
-        this.socket.on('stream:audio', (audioData) => {
-            console.log('Received audio data:', audioData);
-        });
-
         this.socket.on('session:disconnect', () => {
             if (this._disconnectHandler) this._disconnectHandler();
         });
@@ -62,7 +58,6 @@ class WebSocketConnection {
         this._disconnectHandler = null;
 
         this.socket.off('stream:frame');
-        this.socket.off('stream:audio');
         this.socket.off('session:disconnect');
         return true;
     }
