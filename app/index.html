@@ -272,11 +272,17 @@
               </svg>
               <span for="method" class="text-sm font-medium text-gray-700">Protocol</span>
             </div>
-            <select id="method"
-              class="bg-white border border-gray-300 text-gray-900 text-sm py-1 px-3 rounded focus:outline-none focus:border-gray-400 transition-colors">
-              <option value="webrtc">WebRTC</option>
-              <option value="websocket">WebSockets</option>
-            </select>
+            <div class="relative group flex items-center">
+              <select id="method"
+                class="bg-white border border-gray-300 text-gray-900 text-sm py-1 px-3 rounded focus:outline-none focus:border-gray-400 transition-colors">
+                <option value="webrtc">WebRTC</option>
+                <option value="websocket">WebSockets</option>
+              </select>
+              <div
+                class="absolute text-center bottom-full mb-1 left-3/4 transform -translate-x-3/4 hidden group-hover:block bg-gray-900 text-white text-xs rounded py-1 px-2 whitespace-nowrap">
+                WebSocket mode is generally less reliable and<br>not recommended unless WebRTC isn't available.
+              </div>
+            </div>
           </div>
         </div>
       </div>
