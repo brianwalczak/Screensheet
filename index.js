@@ -170,10 +170,18 @@ io.on('connection', (socket) => {
         if (!activeCode || code !== activeCode) return socket.emit('error', 404);
 
         // Try Cloudflare header first, then x-forwarded-for, then fallback
-        const ip = socket.handshake.headers['cf-connecting-ip']
+        let ip = socket.handshake.headers['cf-connecting-ip']
             || (socket.handshake.headers['x-forwarded-for']?.split(',')[0].trim())
             || socket.handshake.address
-            || null;
+            || "Unknown Connection";
+
+        // Handle ip formatting incl. IPv4-mapped IPv6 addresses
+        if (ip) {
+            ip = ip.trim();
+
+            if (ip.startsWith("::ffff:")) ip = ip.replace("::ffff:", "");
+            if (ip === "::1" || ip === "127.0.0.1") ip = "Local Connection";
+        }
 
         window.webContents.send('session:request', { sessionId, ip });
     });
@@ -204,7 +212,7 @@ io.on('connection', (socket) => {
         if (ws.has(sessionId)) {
             ws.delete(sessionId);
         }
-        
+
         window.webContents.send('session:disconnect', sessionId);
     });
 });
