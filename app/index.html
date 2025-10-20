@@ -296,11 +296,17 @@
             </div>
             <input type="checkbox" id="login" class="hidden" />
 
-            <button id="login_toggle"
-              class="relative inline-flex h-6 w-11 items-center rounded-full bg-gray-300 transition-colors">
-              <span
-                class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-1"></span>
-            </button>
+            <div class="relative group flex items-center">
+              <button id="login_toggle"
+                class="relative inline-flex h-6 w-11 items-center rounded-full bg-gray-300 transition-colors">
+                <span
+                  class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-1"></span>
+              </button>
+              <div
+                class="absolute text-center bottom-full mb-1 left-13/16 transform -translate-x-13/16 hidden group-hover:block bg-gray-900 text-white text-xs rounded py-1 px-2 whitespace-nowrap">
+                For your security, unattended access requires<br>a username and password.
+              </div>
+            </div>
           </div>
 
           <div id="login_settings" class="hidden space-y-3 pt-3 border-t border-gray-200">

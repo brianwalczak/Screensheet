@@ -1,6 +1,7 @@
 const { screen } = require("@nut-tree-fork/nut-js");
 const { app: electron, BrowserWindow, ipcMain, desktopCapturer } = require('electron');
 const { mouseEvent, keyboardEvent } = require('./remote');
+const bcrypt = require('bcryptjs');
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
@@ -141,6 +142,10 @@ ipcMain.handle('settings:load', async () => {
 // Update settings file with modified settings from host
 ipcMain.handle('settings:update', async (event, modified) => {
     try {
+        if (modified?.password && modified.password.length > 0) {
+            modified.password = (await bcrypt.hash(modified.password, 10));
+        }
+
         const updated = { ...settings, ...modified };
         fs.writeFileSync(settingsPath, JSON.stringify(updated, null, 4));
 
