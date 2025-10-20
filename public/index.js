@@ -7,9 +7,6 @@ const video_container = document.querySelector('#video-container');
 const error = document.querySelector('#error-text');
 const video = document.querySelector('#video-container video');
 
-const codeTab = document.querySelector('.tab.code');
-const loginTab = document.querySelector('.tab.login');
-
 import WebRTCConnection from './libs/webrtc.js';
 import WebSocketConnection from './libs/websocket.js';
 
@@ -67,7 +64,7 @@ socket.on('session:offer', async (data) => {
 async function startConnection() {
     let payload = {};
 
-    switch (codeTab.classList.contains('hidden')) {
+    switch (document.querySelector('.tab.code').classList.contains('hidden')) {
         case false:
             const code = input.value.trim();
 
