@@ -135,7 +135,7 @@ window.addEventListener('DOMContentLoaded', () => {
             audio.checked = (settings.audio ?? true);
             control.checked = (settings.control ?? true);
             port.value = (settings.port ?? 3000);
-            method.value = (settings.method ?? 'auto');
+            method.value = (settings.method ?? 'webrtc');
 
             toggleChange(audioToggle, audio.checked);
             toggleChange(controlToggle, control.checked);
@@ -464,7 +464,7 @@ window.addEventListener('DOMContentLoaded', () => {
         if (connection) {
             const current = (connection instanceof WebSocketConnection ? 'websocket' : 'webrtc');
 
-            if ((method.value !== current && method.value !== 'auto') || (method.value === 'auto' && current === 'websocket')) {
+            if (method.value !== current) {
                 await sessionBridge.stop();
             }
         }
