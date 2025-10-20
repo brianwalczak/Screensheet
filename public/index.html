@@ -21,14 +21,38 @@
                         </svg>
                         <h1 class="text-3xl font-semibold text-gray-900">Screensheet</h1>
                     </div>
-                    <p class="text-gray-600 text-sm">Enter a connection code to view a shared screen</p>
+                    <p class="label text-gray-600 text-sm">Enter a connection code to view a shared screen</p>
                 </div>
 
-                <div class="mb-6">
+                <div class="flex border-b border-gray-200 mb-6">
+                    <button onclick="switchTab('code')"
+                        class="code tab-btn cursor-pointer flex-1 py-3 text-sm font-medium text-gray-900 border-b-2 border-gray-900 transition-colors">
+                        Connection Code
+                    </button>
+                    <button onclick="switchTab('login')"
+                        class="login tab-btn cursor-pointer flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 border-b-2 border-transparent transition-colors">
+                        Username & Password
+                    </button>
+                </div>
+
+                <div class="code tab mb-6">
                     <label class="block text-gray-700 text-sm font-medium mb-2">Connection Code</label>
                     <input type="text" id="session-code" placeholder="Enter 8-digit code"
                         class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-center text-xl font-mono py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent transition-all placeholder-gray-400"
                         maxlength="8">
+                </div>
+
+                <div class="login tab mb-6 hidden space-y-4">
+                    <div>
+                        <label class="block text-gray-700 text-sm font-medium mb-2">Username</label>
+                        <input type="text" id="username" placeholder="Enter username"
+                            class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm py-3 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent transition-all placeholder-gray-400">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-medium mb-2">Password</label>
+                        <input type="password" id="password" placeholder="Enter password"
+                            class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm py-3 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent transition-all placeholder-gray-400">
+                    </div>
                 </div>
 
                 <button id="connect-btn" onclick="startConnection()"
@@ -63,6 +87,7 @@
         </div>
     </main>
 
+    <script src="tab.js" type="text/javascript"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script src="index.js" type="module"></script>
 </body>
