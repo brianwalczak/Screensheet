@@ -1,9 +1,14 @@
 const input = document.querySelector('#session-code');
+const username = document.querySelector('#username');
+const password = document.querySelector('#password');
 const connect = document.querySelector('#connect-btn');
 const error_container = document.querySelector('#error-message');
 const video_container = document.querySelector('#video-container');
 const error = document.querySelector('#error-text');
 const video = document.querySelector('#video-container video');
+
+const codeTab = document.querySelector('.tab.code');
+const loginTab = document.querySelector('.tab.login');
 
 import WebRTCConnection from './libs/webrtc.js';
 import WebSocketConnection from './libs/websocket.js';
@@ -60,21 +65,42 @@ socket.on('session:offer', async (data) => {
 });
 
 async function startConnection() {
-    const code = input.value.trim();
+    let payload = {};
 
-    if (code.length !== 8) {
-        showError('Please enter a valid 8-digit connection code.');
-        return;
+    switch (codeTab.classList.contains('hidden')) {
+        case false:
+            const code = input.value.trim();
+
+            if (code.length !== 8) {
+                showError('Please enter a valid 8-digit connection code.');
+                return;
+            }
+
+            payload = code;
+            break;
+        case true:
+            const user = username.value.trim();
+            const pass = password.value.trim();
+
+            if (!user || !pass) {
+                showError('Please enter both a username and password.');
+                return;
+            }
+
+            payload = { username: user, password: pass };
+            break;
     }
 
     connect.textContent = 'Requesting approval...';
     connect.disabled = true;
-    socket.emit('session:request', code);
+    socket.emit('session:request', payload);
 }
 
 async function onDisconnect() {
     video_container.classList.add('hidden');
     input.value = '';
+    username.value = '';
+    password.value = '';
 
     connection.disconnect();
     return errorCode(410);
