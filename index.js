@@ -171,8 +171,14 @@ io.on('connection', (socket) => {
     const sessionId = socket.id;
 
     // Repeat session requests from viewers trying to connect to the host
-    socket.on('session:request', async (code) => {
-        if (!activeCode || code !== activeCode) return socket.emit('error', 404);
+    socket.on('session:request', async (payload) => {
+        if (!payload || !activeCode || (!payload.code && (!payload.username || !payload.password))) return socket.emit('error', 404);
+        if (payload.code && payload.code !== activeCode) return socket.emit('error', 404);
+
+        if (payload.username && payload.password) {
+            const match = await bcrypt.compare(payload.password, settings?.password || '');
+            if (!settings?.username || !settings?.password || !match) return socket.emit('error', 403);
+        }
 
         // Try Cloudflare header first, then x-forwarded-for, then fallback
         let ip = socket.handshake.headers['cf-connecting-ip']
@@ -188,7 +194,7 @@ io.on('connection', (socket) => {
             if (ip === "::1" || ip === "127.0.0.1") ip = "Local Connection";
         }
 
-        window.webContents.send('session:request', { sessionId, ip });
+        window.webContents.send('session:request', { sessionId, ip, auth: (payload.username && payload.password) });
     });
 
     // Repeat session answers from viewer to host when establishing a connection (AFTER approval)

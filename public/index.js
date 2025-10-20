@@ -13,16 +13,28 @@ import WebSocketConnection from './libs/websocket.js';
 let connection; // the current connection instance (WebRTC or WebSocket)
 const socket = io();
 
-input.addEventListener('input', (e) => {
-    e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+const inputChange = (e) => {
     error_container.classList.add('hidden');
-});
+};
 
-input.addEventListener('keypress', (e) => {
+const inputPress = (e) => {
     if (e.key === 'Enter') {
         startConnection();
     }
+};
+
+input.addEventListener('input', (e) => {
+    e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    return inputChange(e);
 });
+
+input.addEventListener('keypress', inputPress);
+
+username.addEventListener('input', inputChange);
+username.addEventListener('keypress', inputPress);
+
+password.addEventListener('input', inputChange);
+password.addEventListener('keypress', inputPress);
 
 function showError(message) {
     error.textContent = message;
@@ -73,7 +85,7 @@ async function startConnection() {
                 return;
             }
 
-            payload = code;
+            payload = { code };
             break;
         case true:
             const user = username.value.trim();
