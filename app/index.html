@@ -284,6 +284,42 @@
               </div>
             </div>
           </div>
+
+          <div class="flex items-center justify-between pt-3 border-t border-gray-200">
+            <div class="flex items-center space-x-3">
+              <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z">
+                </path>
+              </svg>
+              <span for="login" class="text-sm font-medium text-gray-700">Unattended Access</span>
+            </div>
+            <input type="checkbox" id="login" class="hidden" />
+
+            <button id="login_toggle"
+              class="relative inline-flex h-6 w-11 items-center rounded-full bg-gray-300 transition-colors">
+              <span
+                class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-1"></span>
+            </button>
+          </div>
+
+          <div id="login_settings" class="hidden space-y-3 pt-3 border-t border-gray-200">
+            <div class="flex flex-col space-y-2">
+              <label for="username" class="text-sm font-medium text-gray-700">Username</label>
+              
+              <input type="text" id="username"
+                class="bg-white border border-gray-300 text-gray-900 text-sm py-2 px-3 rounded focus:outline-none focus:border-gray-400 transition-colors"
+                placeholder="Enter username" />
+            </div>
+
+            <div class="flex flex-col space-y-2">
+              <label for="password" class="text-sm font-medium text-gray-700">Password</label>
+
+              <input type="password" id="password"
+                class="bg-white border border-gray-300 text-gray-900 text-sm py-2 px-3 rounded focus:outline-none focus:border-gray-400 transition-colors"
+                placeholder="Enter password" />
+            </div>
+          </div>
         </div>
       </div>
     </div>

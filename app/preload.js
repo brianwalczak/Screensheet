@@ -29,6 +29,12 @@ window.addEventListener('DOMContentLoaded', () => {
     const control = document.querySelector('#control');
     const port = document.querySelector('#port');
     const method = document.querySelector('#method');
+    const loginToggle = document.querySelector('#login_toggle');
+    const login = document.querySelector('#login');
+
+    const loginSettings = document.querySelector('#login_settings');
+    const username = loginSettings.querySelector('#username');
+    const password = loginSettings.querySelector('#password');
 
     function startConnection() {
         connection = method.value === 'websocket' ? new WebSocketConnection() : new WebRTCConnection();
@@ -137,8 +143,14 @@ window.addEventListener('DOMContentLoaded', () => {
             port.value = (settings.port ?? 3000);
             method.value = (settings.method ?? 'webrtc');
 
+            login.checked = (settings.login ?? false);
+            username.value = (settings.username ?? '');
+            // will be adding bcryptjs later so no password storage!
+
             toggleChange(audioToggle, audio.checked);
             toggleChange(controlToggle, control.checked);
+            toggleChange(loginToggle, login.checked);
+            if (login.checked) loginSettings.classList.remove('hidden');
             if (magic.checked) updateLabels(); // only need to update if magic mode enabled (since not default)
         }
     });
@@ -471,6 +483,37 @@ window.addEventListener('DOMContentLoaded', () => {
 
         ipcRenderer.invoke('settings:update', {
             method: method.value
+        });
+    });
+
+    // Unattended access toggle switch event
+    loginToggle.addEventListener('click', () => {
+        login.checked = (!login.checked);
+
+        if (login.checked) {
+            loginSettings.classList.remove('hidden');
+        } else {
+            loginSettings.classList.add('hidden');
+        }
+
+        ipcRenderer.invoke('settings:update', {
+            login: login.checked
+        });
+
+        return toggleChange(loginToggle, login.checked);
+    });
+
+
+    // Save unattended access credentials when changed
+    username.addEventListener('change', () => {
+        ipcRenderer.invoke('settings:update', {
+            username: username.value
+        });
+    });
+
+    password.addEventListener('change', () => {
+        ipcRenderer.invoke('settings:update', {
+            password: password.value
         });
     });
 });
