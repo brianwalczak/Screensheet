@@ -88,46 +88,46 @@ window.addEventListener('DOMContentLoaded', () => {
 
         if (theme.checked) {
             document.body.classList.remove('bg-white');
-            document.body.classList.add('bg-purple-100');
+            document.body.classList.add('bg-orange-100');
 
             document.querySelectorAll('.settings-div').forEach(div => {
                 div.classList.remove('bg-gray-50');
                 div.classList.remove('border-gray-200');
-                div.classList.add('bg-purple-50');
-                div.classList.add('border-purple-200');
+                div.classList.add('bg-orange-50');
+                div.classList.add('border-orange-200');
             });
 
             document.querySelectorAll('.connection_items div').forEach(div => {
                 div.classList.remove('bg-white');
                 div.classList.remove('border-gray-200');
-                div.classList.add('bg-purple-50');
-                div.classList.add('border-purple-200');
+                div.classList.add('bg-orange-50');
+                div.classList.add('border-orange-200');
             });
 
             themeToggle.classList.remove('bg-white');
             themeToggle.classList.remove('hover:bg-gray-100');
-            themeToggle.classList.add('bg-purple-200');
-            themeToggle.classList.add('hover:bg-purple-300');
+            themeToggle.classList.add('bg-orange-200');
+            themeToggle.classList.add('hover:bg-orange-300');
         } else {
-            document.body.classList.remove('bg-purple-100');
+            document.body.classList.remove('bg-orange-100');
             document.body.classList.add('bg-white');
 
             document.querySelectorAll('.settings-div').forEach(div => {
-                div.classList.remove('bg-purple-50');
-                div.classList.remove('border-purple-200');
+                div.classList.remove('bg-orange-50');
+                div.classList.remove('border-orange-200');
                 div.classList.add('bg-gray-50');
                 div.classList.add('border-gray-200');
             });
 
             document.querySelectorAll('.connection_items div').forEach(div => {
-                div.classList.remove('bg-purple-50');
-                div.classList.remove('border-purple-200');
+                div.classList.remove('bg-orange-50');
+                div.classList.remove('border-orange-200');
                 div.classList.add('bg-white');
                 div.classList.add('border-gray-200');
             });
 
-            themeToggle.classList.remove('bg-purple-200');
-            themeToggle.classList.remove('hover:bg-purple-300');
+            themeToggle.classList.remove('bg-orange-200');
+            themeToggle.classList.remove('hover:bg-orange-300');
             themeToggle.classList.add('bg-white');
             themeToggle.classList.add('hover:bg-gray-100');
         }
