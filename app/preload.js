@@ -252,7 +252,7 @@ window.addEventListener('DOMContentLoaded', () => {
         list.innerHTML = '';
 
         if (connection) {
-            for (let [sessionId, meta] of connection.getPending().entries()) { 
+            for (let [sessionId, meta] of connection.getPending().entries()) {
                 const item = document.querySelector('.connection_items .pending_item').cloneNode(true);
                 item.querySelector('.item_name').textContent = (meta.ip ?? sessionId);
 
@@ -313,11 +313,16 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     // Handles incoming connection requests from viewers
-    async function onRequest(event, { sessionId, ip = null }) {
+    async function onRequest(event, { sessionId, auth = false, ip = null }) {
         if (!connection) return;
 
         connection.addOffer(sessionId, { ip });
-        document.querySelector('.tab-btn.connections').click();
+
+        if (auth) {
+            await approve(sessionId);
+        } else {
+            document.querySelector('.tab-btn.connections').click();
+        }
     };
 
     // Handles incoming session answers from viewers for connection
@@ -357,9 +362,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
         if (connection && display) {
             const attempt = await connection.updateAudio((!audio.checked), { display });
-            
+
             if (method.value === 'websocket') {
-                if(attempt) {
+                if (attempt) {
                     restart = true;
                 } else {
                     return;
