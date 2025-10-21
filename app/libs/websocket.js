@@ -54,6 +54,8 @@ class WebSocketConnection {
 
     // Accepts an offer from a viewer and creates a new websocket connection
     async acceptOffer(socketId, { display, screenSize }, enableAudio, onMessage, onStateChange) {
+        if (!socketId || !screenSize) return null;
+
         let meta = this.peers.pending.get(socketId);
         if (!meta) return null;
 
@@ -61,11 +63,19 @@ class WebSocketConnection {
         this.peers.connected.set(socketId, { connectedAt: Date.now(), ip: meta?.ip });
         onStateChange("connected");
 
-        const screen = await ipcRenderer.invoke('display');
-        
-        this.frames = await StreamFrames.create(screen, async (frame) => {
-            await ipcRenderer.invoke('stream:frame', frame);
-        }, enableAudio);
+        try {
+            const screen = await ipcRenderer.invoke('display');
+
+            this.frames = await StreamFrames.create(screen, async (frame) => {
+                await ipcRenderer.invoke('stream:frame', frame);
+            }, enableAudio);
+        } catch (error) {
+            console.error("An error occurred while starting frame stream: ", error);
+            
+            onStateChange("disconnected");
+            this.peers.connected.delete(socketId);
+            return null;
+        }
 
         return {
             sessionId: socketId,

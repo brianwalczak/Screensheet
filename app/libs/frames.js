@@ -1,5 +1,7 @@
 class StreamFrames {
-    constructor(screen, callback, enableAudio) {
+    constructor(screen, callback = null, enableAudio = false) {
+        if (!screen) throw new Error('A valid screen must be provided to start streaming.');
+
         this.config = {
             fps: 15,
             bitrate: 500000,
@@ -13,79 +15,97 @@ class StreamFrames {
         this.codec = null;
     }
 
-    static async create(screen, callback, enableAudio = false) {
-        const instance = new StreamFrames(screen, callback, enableAudio);
-        await instance.start();
+    static async create(screen, callback = null, enableAudio = false) {
+        try {
+            const instance = new StreamFrames(screen, callback, enableAudio);
+            await instance.start();
 
-        return instance;
+            return instance;
+        } catch (error) {
+            console.error("Failed to create a new instance: ", error);
+            return null;
+        }
     }
 
     async start() {
-        if (!this.stream && this.screen) {
-            this.stream = await navigator.mediaDevices.getUserMedia({
-                audio: this.enableAudio ? {
-                    mandatory: {
-                        chromeMediaSource: 'desktop',
-                    }
-                } : false,
-                video: {
-                    mandatory: {
-                        chromeMediaSource: 'desktop',
-                        chromeMediaSourceId: this.screen.display[0].id,
-                        frameRate: { ideal: this.config.fps, max: this.config.fps },
-                        minWidth: this.screen.width,
-                        minHeight: this.screen.height,
-                        maxWidth: this.screen.width,
-                        maxHeight: this.screen.height,
+        if (!this.screen) return null;
+        if (!window.MediaRecorder) {
+            alert('Whoops, looks like your device does not support the MediaRecorder API! You may need to use a different protocol, such as WebRTC.');
+            throw new Error("MediaRecorder is not supported by this device.");
+        }
+
+        try {
+            if (!this.stream) {
+                this.stream = await navigator.mediaDevices.getUserMedia({
+                    audio: this.enableAudio ? {
+                        mandatory: {
+                            chromeMediaSource: 'desktop',
+                        }
+                    } : false,
+                    video: {
+                        mandatory: {
+                            chromeMediaSource: 'desktop',
+                            chromeMediaSourceId: this.screen.display[0].id,
+                            frameRate: { ideal: this.config.fps, max: this.config.fps },
+                            minWidth: this.screen.width,
+                            minHeight: this.screen.height,
+                            maxWidth: this.screen.width,
+                            maxHeight: this.screen.height,
+                        },
                     },
-                },
+                });
+            }
+
+            const mimeTypes = this.enableAudio ? [
+                'video/webm;codecs=vp8,opus',
+                'video/webm;codecs=h264,opus',
+                'video/webm;codecs=avc1,opus',
+                'video/webm;codecs=vp9,opus',
+                'video/mp4;codecs=avc1,mp4a.40.2'
+            ] : [
+                'video/webm;codecs=vp8',
+                'video/webm;codecs=h264',
+                'video/webm;codecs=avc1',
+                'video/webm;codecs=vp9',
+                'video/mp4;codecs=avc1'
+            ];
+
+            for (const mimeType of mimeTypes) {
+                if (MediaRecorder.isTypeSupported(mimeType)) {
+                    this.codec = mimeType;
+                    break;
+                }
+            }
+
+            if (!this.codec) {
+                throw new Error('No supported video codec found');
+            }
+
+            this.mediaRecorder = new MediaRecorder(this.stream, {
+                mimeType: this.codec,
+                videoBitsPerSecond: this.config.bitrate
             });
-        }
 
-        const mimeTypes = this.enableAudio ? [
-            'video/webm;codecs=vp8,opus',
-            'video/webm;codecs=h264,opus',
-            'video/webm;codecs=avc1,opus',
-            'video/webm;codecs=vp9,opus',
-            'video/mp4;codecs=avc1,mp4a.40.2'
-        ] : [
-            'video/webm;codecs=vp8',
-            'video/webm;codecs=h264',
-            'video/webm;codecs=avc1',
-            'video/webm;codecs=vp9',
-            'video/mp4;codecs=avc1'
-        ];
+            this.mediaRecorder.ondataavailable = async (event) => {
+                if (event.data && event.data.size > 0) {
+                    try {
+                        const arrayBuffer = await event.data.arrayBuffer();
 
-        for (const mimeType of mimeTypes) {
-            if (MediaRecorder.isTypeSupported(mimeType)) {
-                this.codec = mimeType;
-                break;
-            }
-        }
+                        await this.config.callback(arrayBuffer);
+                    } catch { };
+                }
+            };
 
-        if (!this.codec) {
-            throw new Error('No supported video codec found');
-        }
+            this.mediaRecorder.onerror = (error) => {
+                this.stop();
+                throw new Error(error);
+            };
 
-        this.mediaRecorder = new MediaRecorder(this.stream, {
-            mimeType: this.codec,
-            videoBitsPerSecond: this.config.bitrate
-        });
-
-        this.mediaRecorder.ondataavailable = async (event) => {
-            if (event.data && event.data.size > 0) {
-                const arrayBuffer = await event.data.arrayBuffer();
-
-                await this.config.callback(arrayBuffer);
-            }
-        };
-
-        this.mediaRecorder.onerror = (error) => {
+            this.mediaRecorder.start(this.config.timeslice);
+        } catch (error) {
             this.stop();
-            throw new Error(error);
-        };
-
-        this.mediaRecorder.start(this.config.timeslice);
+            throw new Error("An unknown error occurred while starting the stream: " + error);
+        }
     }
 
     stop() {

@@ -1,5 +1,10 @@
 class WebRTCConnection {
     constructor() {
+        if (!window.RTCPeerConnection) {
+            alert('Whoops, looks like your device does not support WebRTC! You may need to use a different protocol, such as WebSockets.');
+            throw new Error("WebRTC is not supported by this device.");
+        }
+
         this.peers = {
             connected: new Map(), // stores active peer connections
             pending: new Map() // stores pending connection requests
@@ -8,10 +13,14 @@ class WebRTCConnection {
 
     // Creates an empty audio track for when audio sharing is disabled
     emptyAudio = (() => {
-        const ctx = new AudioContext();
-        const dst = ctx.createMediaStreamDestination();
+        try {
+            const ctx = new AudioContext();
+            const dst = ctx.createMediaStreamDestination();
 
-        return dst.stream.getAudioTracks()[0];
+            return dst.stream.getAudioTracks()[0];
+        } catch {
+            return null;
+        }
     })();
 
     getPending() {
@@ -70,6 +79,8 @@ class WebRTCConnection {
 
     // Accepts an offer from a viewer and creates a new peer connection
     async acceptOffer(peerId, { display, screenSize }, enableAudio, onMessage, onStateChange) {
+        if (!peerId || !display) return null;
+
         let meta = this.peers.pending.get(peerId);
         if (!meta) return null;
 
@@ -77,46 +88,59 @@ class WebRTCConnection {
         this.peers.connected.set(peerId, { pc: new RTCPeerConnection(), meta: { connectedAt: Date.now(), ip: meta?.ip } });
 
         const pc = this.peers.connected.get(peerId)?.pc;
+        if (!pc) return null;
+
         const channel = pc.createDataChannel('input');
-
         channel.onopen = () => {
-            channel.send(JSON.stringify(screenSize));
+            if (!screenSize || !screenSize.width || !screenSize.height) return;
+
+            try {
+                const string = JSON.stringify(screenSize);
+                channel.send(string);
+            } catch { }
         };
 
-        channel.onmessage = onMessage;
+        if (onMessage) {
+            channel.onmessage = onMessage;
+        }
 
-        display.getTracks().forEach(track => {
-            if (track.kind === 'audio' && !enableAudio) return pc.addTrack(this.emptyAudio, display); // replace with silent track if audio disabled
-            pc.addTrack(track, display); // add actual track if audio enabled or if video
-        });
+        try {
+            display.getTracks().forEach(track => {
+                if (track.kind === 'audio' && !enableAudio) return pc.addTrack(this?.emptyAudio, display); // replace with silent track if audio disabled
+                pc.addTrack(track, display); // add actual track if audio enabled or if video
+            });
 
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
 
-        // Wait for connection to finish gathering ICE candidates
-        await new Promise(resolve => {
-            if (pc.iceGatheringState === "complete") {
-                resolve();
-            } else {
-                pc.onicegatheringstatechange = () => {
-                    if (pc.iceGatheringState === "complete") resolve();
-                };
-            }
-        });
+            // Wait for connection to finish gathering ICE candidates
+            await new Promise(resolve => {
+                if (pc.iceGatheringState === "complete") {
+                    resolve();
+                } else {
+                    pc.onicegatheringstatechange = () => {
+                        if (pc.iceGatheringState === "complete") resolve();
+                    };
+                }
+            });
 
-        pc.onconnectionstatechange = () => {
-            let state = pc.connectionState;
+            pc.onconnectionstatechange = () => {
+                let state = pc.connectionState;
 
-            if (["connected", "completed"].includes(pc.connectionState)) {
-                state = "connected";
-            } else if (["disconnected", "failed", "closed"].includes(pc.connectionState)) {
-                state = "disconnected";
-            } else if(["new", "checking", "connecting"].includes(pc.connectionState)) {
-                state = "connecting";
-            }
+                if (["connected", "completed"].includes(pc.connectionState)) {
+                    state = "connected";
+                } else if (["disconnected", "failed", "closed"].includes(pc.connectionState)) {
+                    state = "disconnected";
+                } else if (["new", "checking", "connecting"].includes(pc.connectionState)) {
+                    state = "connecting";
+                }
 
-            return onStateChange(state);
-        };
+                return onStateChange(state);
+            };
+        } catch (error) {
+            console.error("An unknown error occurred while accepting WebRTC offer: ", error);
+            return null;
+        }
 
         return {
             sessionId: peerId,
@@ -131,9 +155,15 @@ class WebRTCConnection {
     // Accepts an answer from a viewer and completes da peer connection
     async acceptAnswer(peerId, answer) {
         const pc = this.peers.connected.get(peerId)?.pc;
-        if (!pc) return null;
+        if (!pc) return false;
 
-        await pc.setRemoteDescription(answer);
+        try {
+            await pc.setRemoteDescription(answer);
+        } catch (error) {
+            console.error("An unknown error occurred while accepting WebRTC answer: ", error);
+            return false;
+        }
+
         return true;
     }
 
@@ -141,6 +171,7 @@ class WebRTCConnection {
     async updateAudio(enableAudio, { display }) {
         for (let peer of this.peers.connected.values()) {
             let pc = peer?.pc;
+            if (!pc) continue;
 
             for (let sender of pc.getSenders()) {
                 if (sender.track.kind === 'audio') {
@@ -149,7 +180,7 @@ class WebRTCConnection {
                             sender.replaceTrack(display.getAudioTracks()[0]);
                         }
                     } else {
-                        sender.replaceTrack(this.emptyAudio);
+                        sender.replaceTrack(this?.emptyAudio);
                     }
                 }
             }
@@ -161,7 +192,7 @@ class WebRTCConnection {
     // Disconnects a specific peer connection
     async disconnect(peerId) {
         let pc = this.peers.connected.get(peerId)?.pc;
-        if (!pc) return null;
+        if (!pc) return false;
 
         pc.close();
         this.peers.connected.delete(peerId);
@@ -172,6 +203,7 @@ class WebRTCConnection {
     async disconnectAll() {
         for (let peer of this.peers.connected.values()) {
             let pc = peer?.pc;
+            if (!pc) continue;
 
             pc.getSenders().forEach(sender => {
                 if (sender.track) {
