@@ -12,7 +12,7 @@
 - (⌨️) Real-time keyboard and mouse input forwarding that can be enabled or disabled.
 - (🔊) Optional device audio sharing that can be enabled or disabled.
 - (👥) View, accept, decline, and disconnect visitors with ease.
-- (✨) "Magic" mode featuring a magic-themed user interface!
+- (🍁) Autumn is finally here, featuring a fall-themed user interface!
 - (📦) Built with Node.js and Electron for cross-platform support.
 - (👤) Open-source under Apache 2.0 license - contribute or view it anytime.
 
@@ -24,7 +24,7 @@ https://github.com/user-attachments/assets/ce5c4689-de2f-4659-b947-097dce9cdb4a
 ### Viewing a Session
 https://github.com/user-attachments/assets/45157dbe-762e-4b7a-8ae8-21c9e709c807
 
-### Magic Mode ✨
+### Autumn Mode 🍁
 https://github.com/user-attachments/assets/647269da-ff69-462d-8de6-e7c57b2ed7d8
 
 
