@@ -80,6 +80,7 @@ window.addEventListener('DOMContentLoaded', () => {
         document.querySelector('.settings-div span[for="control"]').textContent = getLabel('remoteControl');
         document.querySelector('.settings-div span[for="port"]').textContent = getLabel('serverPort');
         document.querySelector('.settings-div span[for="method"]').textContent = getLabel('connectionMethod');
+        document.querySelector('.settings-div span[for="login"]').textContent = getLabel('unattendedAccess');
 
         document.querySelector('.tab-btn.home').textContent = getLabel('menu_home');
         document.querySelector('.tab-btn.connections').textContent = getLabel('menu_connections');

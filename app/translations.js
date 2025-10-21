@@ -27,37 +27,39 @@ const labels = {
         audioSharing: "Audio Sharing",
         remoteControl: "Remote Control",
         serverPort: "Server Port",
-        connectionMethod: "Protocol"
+        connectionMethod: "Protocol",
+        unattendedAccess: "Unattended Access"
     },
     theme: {
-        appTitle: "Screenmagic Client",
-        title: "Magic Mode",
-        description: "Summon a portal to your dimension in seconds",
-        codeLabel: "Portal Key",
-        warningTitle: "Portal Warning",
-        warningDescription: `<span class="font-semibold">Never</span> share this key with untrusted beings. It grants complete access to your dimension.`,
-        connectionsLabel: "Entered {status}",
+        appTitle: "Screensheet Client",
+        title: "Autumn Mode",
+        description: "Embrace the season of change by gathering together!",
+        codeLabel: "Leaf Pattern",
+        warningTitle: "Harvest Warning",
+        warningDescription: `<span class="font-semibold">Never</span> share this leaf with untrusted beings. It grants complete access to your harvest.`,
+        connectionsLabel: "Joined {status}",
 
-        startBtn: "Summon Portal",
-        startingBtn: "Summoning portal...",
-        endBtn: "Close Portal",
-        copyBtn: "Grab Key",
-        copiedBtn: "Grabbed!",
+        startBtn: "Start Harvest",
+        startingBtn: "Gathering leaves...",
+        endBtn: "End Harvest",
+        copyBtn: "Collect Leaf",
+        copiedBtn: "Collected!",
 
-        menu_home: "Sanctuary",
-        menu_connections: "Visitors",
-        menu_settings: "Enchantments",
+        menu_home: "Cabin",
+        menu_connections: "Gatherings",
+        menu_settings: "Forest",
 
-        connected: "Portal Opened",
-        disconnected: "Portal Closed",
-        waiting: "Summoning",
-        active: "Open",
-        inactive: "Sealed",
+        connected: "Joined Harvest",
+        disconnected: "Left Harvest",
+        waiting: "Getting Ready",
+        active: "Ready to Gather",
+        inactive: "Resting",
 
-        audioSharing: "Sound Relay",
-        remoteControl: "Portal Control",
-        serverPort: "Portal Node",
-        connectionMethod: "Ritual Type"
+        audioSharing: "Listen Along",
+        remoteControl: "Share Leaves",
+        serverPort: "Cabin Location",
+        connectionMethod: "Gathering Type",
+        unattendedAccess: "Always-Open Cabin"
     }
 };
 
