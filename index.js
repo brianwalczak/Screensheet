@@ -88,7 +88,11 @@ ipcMain.handle('display', async (event) => {
 
 ipcMain.handle('stream:frame', async (event, frame) => {
     for (let socketId of ws) {
-        io.to(socketId).volatile.emit('stream:frame', frame);
+        try {
+            io.to(socketId).volatile.emit('stream:frame', frame);
+        } catch (error) {
+            console.error("Error sending frame to socket ", socketId, ": ", error);
+        }
     }
 });
 
@@ -96,10 +100,8 @@ ipcMain.handle('stream:frame', async (event, frame) => {
 
 // Start a new session and generate a new session code
 ipcMain.handle('session:start', async (event) => {
-    const code = Math.random().toString(36).substring(2, 10).toUpperCase();
-    activeCode = code;
-
-    return code;
+    activeCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+    return activeCode;
 });
 
 // Stop the current session (invalidate the session code)
@@ -128,7 +130,11 @@ ipcMain.handle('session:disconnect', async (event, sessionId) => {
             ws.delete(sessionId);
         }
 
-        io.to(sessionId).emit('session:disconnect');
+        try {
+            io.to(sessionId).emit('session:disconnect');
+        } catch (error) {
+            console.error("Error sending disconnect to socket ", sessionId, ": ", error);
+        }
     }
 });
 
@@ -199,21 +205,22 @@ io.on('connection', (socket) => {
 
     // Repeat session answers from viewer to host when establishing a connection (AFTER approval)
     socket.on('session:answer', (answer) => {
+        if (!answer) return;
         window.webContents.send('session:answer', { sessionId, answer });
 
-        if (answer.type === 'websocket') {
+        if (answer?.type === 'websocket') {
             ws.add(sessionId);
         }
     });
 
     socket.on('nutjs:mouse', (data) => {
-        if (!ws.has(sessionId) || !settings.control) return;
+        if (!ws.has(sessionId) || !settings.control || !data) return;
 
         mouseEvent(data);
     });
 
     socket.on('nutjs:keyboard', (data) => {
-        if (!ws.has(sessionId) || !settings.control) return;
+        if (!ws.has(sessionId) || !settings.control || !data) return;
 
         keyboardEvent(data);
     });
