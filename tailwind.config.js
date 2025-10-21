@@ -11,13 +11,16 @@ module.exports = {
         'border-gray-200',
         'bg-purple-50',
         'border-purple-200',
-        'hover:bg-gray-100',
         'bg-purple-200',
         'hover:bg-purple-300',
-        'bg-gray-400',
+        'hover:bg-gray-100',
         'bg-green-500',
         'bg-yellow-500',
         'bg-red-500',
-        'hidden'
+        'hidden',
+        'text-gray-500',
+        'border-transparent',
+        'text-gray-900',
+        'border-gray-900'
     ]
 }
