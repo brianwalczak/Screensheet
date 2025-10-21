@@ -22,7 +22,7 @@ class WebSocketConnection {
 
     // Accepts an offer from a viewer and sets up the connection
     async acceptOffer(offer, onDisconnect) {
-        if (!this.socket || !offer || !offer.width || !offer.height) return { accepted: false };
+        if (!this.socket || !offer || !offer.width || !offer.height) return { declined: true };
 
         this.screenSize = { width: offer.width, height: offer.height };
         this.eventsReady = true;
@@ -52,11 +52,11 @@ class WebSocketConnection {
             video_container.classList.remove('hidden');
         } catch (error) {
             console.error("An unknown error occurred while accepting WebSocket offer: ", error);
-            return { accepted: false };
+            return { declined: true };
         }
 
         return {
-            accepted: true,
+            declined: false,
             type: 'websocket'
         };
     }
