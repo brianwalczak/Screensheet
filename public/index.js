@@ -67,7 +67,13 @@ socket.on('session:offer', async (data) => {
     connection = data.type === 'websocket' ? new WebSocketConnection(socket) : new WebRTCConnection();
 
     const handshake = await connection.acceptOffer(data.offer, onDisconnect);
-    socket.emit('session:answer', handshake);
+    
+    if (handshake) {
+        socket.emit('session:answer', handshake);
+    } else {
+        socket.emit('session:disconnect');
+        onDisconnect();
+    }
 
     connect.textContent = 'Connect';
     connect.disabled = false;

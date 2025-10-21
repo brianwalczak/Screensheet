@@ -22,7 +22,7 @@ class WebSocketConnection {
 
     // Accepts an offer from a viewer and sets up the connection
     async acceptOffer(offer, onDisconnect) {
-        if (!this.socket || !offer || !offer.width || !offer.height) return { declined: true };
+        if (!this.socket || !offer || !offer.width || !offer.height) return null;
 
         this.screenSize = { width: offer.width, height: offer.height };
         this.eventsReady = true;
@@ -52,13 +52,10 @@ class WebSocketConnection {
             video_container.classList.remove('hidden');
         } catch (error) {
             console.error("An unknown error occurred while accepting WebSocket offer: ", error);
-            return { declined: true };
+            return null;
         }
 
-        return {
-            declined: false,
-            type: 'websocket'
-        };
+        return { type: 'websocket' };
     }
 
     // Send a remote control event to the server directly (no need to relay via peer)

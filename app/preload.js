@@ -199,9 +199,10 @@ window.addEventListener('DOMContentLoaded', () => {
             await createDisplay();
         }
 
-        const handshake = await connection.acceptOffer(sessionId, { display, screenSize }, audio.checked, (e) => {
+        let handshake = await connection.acceptOffer(sessionId, { display, screenSize }, audio.checked, (e) => {
             // on message
             try {
+                if (!e.data) return;
                 const message = JSON.parse(e.data);
 
                 if (message.name && message.method && control.checked) { // only allow control if enabled
@@ -217,10 +218,12 @@ window.addEventListener('DOMContentLoaded', () => {
             } catch { };
         }, async (state) => {
             // on state change
+            if (!state) return;
             await statusChange(state, sessionId); // update status, disconnect if needed
         });
 
         // Send the session response with the offer for the viewer to connect
+        if (!handshake) handshake = { sessionId, declined: true }; // decline if error occurred
         await ipcRenderer.invoke('session:response', handshake);
     };
 

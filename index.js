@@ -114,12 +114,16 @@ ipcMain.handle('session:stop', async (event) => {
 
 // Sends session responses from the host to the viewer (accept or decline)
 ipcMain.handle('session:response', async (event, { sessionId, offer, type, declined }) => {
-    if (sessionId) {
-        if (offer && !declined) { // accept
-            io.to(sessionId).emit('session:offer', { offer, type });
-        } else { // decline
-            io.to(sessionId).emit('session:offer', { declined: true });
+    try {
+        if (sessionId) {
+            if (offer && !declined) { // accept
+                io.to(sessionId).emit('session:offer', { offer, type });
+            } else { // decline
+                io.to(sessionId).emit('session:offer', { declined: true });
+            }
         }
+    } catch (error) {
+        console.error("Error sending session response to socket ", sessionId, ": ", error);
     }
 });
 
@@ -176,6 +180,14 @@ app.use(express.static(path.join(__dirname, 'public')));
 io.on('connection', (socket) => {
     const sessionId = socket.id;
 
+    const handleDisconnect = () => {
+        if (ws.has(sessionId)) {
+            ws.delete(sessionId);
+        }
+
+        window.webContents.send('session:disconnect', sessionId);
+    };
+
     // Repeat session requests from viewers trying to connect to the host
     socket.on('session:request', async (payload) => {
         if (!payload || !activeCode || (!payload.code && (!payload.username || !payload.password)) || (payload.username && payload.password && !settings?.login)) return socket.emit('error', 404);
@@ -226,13 +238,8 @@ io.on('connection', (socket) => {
     });
 
     // Remove peer connection when viewer disconnects
-    socket.on('disconnect', () => {
-        if (ws.has(sessionId)) {
-            ws.delete(sessionId);
-        }
-
-        window.webContents.send('session:disconnect', sessionId);
-    });
+    socket.on('session:disconnect', handleDisconnect);
+    socket.on('disconnect', handleDisconnect);
 });
 
 (async () => {

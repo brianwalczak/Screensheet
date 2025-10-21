@@ -16,7 +16,7 @@ class WebRTCConnection {
 
     // Accepts an offer from a viewer and creates a new peer connection
     async acceptOffer(offer, onDisconnect) {
-        if (!this.pc || !offer || !offer.sdp) return { type: null, sdp: null };
+        if (!this.pc || !offer || !offer.sdp) return null;
 
         this.pc.ontrack = (event) => {
             if (!event.streams || !event.streams[0]) return;
@@ -54,7 +54,7 @@ class WebRTCConnection {
             };
         } catch (error) {
             console.error("An unknown error occurred while accepting WebRTC offer: ", error);
-            return { type: null, sdp: null };
+            return null;
         }
 
         return {
