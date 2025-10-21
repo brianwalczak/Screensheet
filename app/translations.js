@@ -29,7 +29,7 @@ const labels = {
         serverPort: "Server Port",
         connectionMethod: "Protocol"
     },
-    magic: {
+    theme: {
         appTitle: "Screenmagic Client",
         title: "Magic Mode",
         description: "Summon a portal to your dimension in seconds",
@@ -61,9 +61,9 @@ const labels = {
     }
 };
 
-// Returns the correct label based on whether magic mode is enabled
+// Returns the correct label based on whether theme mode is enabled
 function getLabel(key) {
-    return magic.checked ? labels.magic[key] : labels.normal[key];
+    return theme.checked ? labels.theme[key] : labels.normal[key];
 };
 
 // Finds a matching label in the opposite mode (for status updates)
@@ -71,7 +71,7 @@ const findMatching = (text, location) => {
     const keyName = Object.keys(labels[location]).find(k => labels[location][k] === text);
     if (!keyName) return null;
 
-    return labels[location === 'normal' ? 'magic' : 'normal'][keyName] ?? null;
+    return labels[location === 'normal' ? 'theme' : 'normal'][keyName] ?? null;
 };
 
 if (typeof module !== 'undefined' && module.exports) {

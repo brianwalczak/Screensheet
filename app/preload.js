@@ -9,8 +9,8 @@ let display = null; // the current display media stream
 let screenSize = null; // the dimensions of `display` param
 
 window.addEventListener('DOMContentLoaded', () => {
-    const magicToggle = document.querySelector('#magic_toggle');
-    const magic = document.querySelector('#magic');
+    const themeToggle = document.querySelector('#theme_toggle');
+    const theme = document.querySelector('#theme');
 
     const input = document.querySelector('#code');
     const status = document.querySelector('#status');
@@ -74,7 +74,7 @@ window.addEventListener('DOMContentLoaded', () => {
         start.textContent = getLabel('startBtn');
         stop.textContent = getLabel('endBtn');
         copy.textContent = getLabel('copyBtn');
-        status.textContent = findMatching(status.textContent, (magic.checked ? 'normal' : 'magic')) ?? status.textContent;
+        status.textContent = findMatching(status.textContent, (theme.checked ? 'normal' : 'theme')) ?? status.textContent;
 
         document.querySelector('.settings-div span[for="audio"]').textContent = getLabel('audioSharing');
         document.querySelector('.settings-div span[for="control"]').textContent = getLabel('remoteControl');
@@ -85,7 +85,7 @@ window.addEventListener('DOMContentLoaded', () => {
         document.querySelector('.tab-btn.connections').textContent = getLabel('menu_connections');
         document.querySelector('.tab-btn.settings').textContent = getLabel('menu_settings');
 
-        if (magic.checked) {
+        if (theme.checked) {
             document.body.classList.remove('bg-white');
             document.body.classList.add('bg-purple-100');
 
@@ -103,10 +103,10 @@ window.addEventListener('DOMContentLoaded', () => {
                 div.classList.add('border-purple-200');
             });
 
-            magicToggle.classList.remove('bg-white');
-            magicToggle.classList.remove('hover:bg-gray-100');
-            magicToggle.classList.add('bg-purple-200');
-            magicToggle.classList.add('hover:bg-purple-300');
+            themeToggle.classList.remove('bg-white');
+            themeToggle.classList.remove('hover:bg-gray-100');
+            themeToggle.classList.add('bg-purple-200');
+            themeToggle.classList.add('hover:bg-purple-300');
         } else {
             document.body.classList.remove('bg-purple-100');
             document.body.classList.add('bg-white');
@@ -125,10 +125,10 @@ window.addEventListener('DOMContentLoaded', () => {
                 div.classList.add('border-gray-200');
             });
 
-            magicToggle.classList.remove('bg-purple-200');
-            magicToggle.classList.remove('hover:bg-purple-300');
-            magicToggle.classList.add('bg-white');
-            magicToggle.classList.add('hover:bg-gray-100');
+            themeToggle.classList.remove('bg-purple-200');
+            themeToggle.classList.remove('hover:bg-purple-300');
+            themeToggle.classList.add('bg-white');
+            themeToggle.classList.add('hover:bg-gray-100');
         }
 
         updateConnections(); // update connections list to reflect new labels + bg
@@ -137,7 +137,7 @@ window.addEventListener('DOMContentLoaded', () => {
     // Load the settings configuration from the main process
     ipcRenderer.invoke('settings:load').then(settings => {
         if (settings) {
-            magic.checked = (settings.magic ?? false);
+            theme.checked = (settings.theme ?? false);
             audio.checked = (settings.audio ?? true);
             control.checked = (settings.control ?? true);
             port.value = (settings.port ?? 3000);
@@ -151,7 +151,7 @@ window.addEventListener('DOMContentLoaded', () => {
             toggleChange(controlToggle, control.checked);
             toggleChange(loginToggle, login.checked);
             if (login.checked) loginSettings.classList.remove('hidden');
-            if (magic.checked) updateLabels(); // only need to update if magic mode enabled (since not default)
+            if (theme.checked) updateLabels(); // only need to update if theme mode enabled (since not default)
         }
     });
 
@@ -344,12 +344,12 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Magic button switch event
-    magicToggle.addEventListener('click', () => {
-        magic.checked = (!magic.checked);
+    // Theme button switch event
+    themeToggle.addEventListener('click', () => {
+        theme.checked = (!theme.checked);
 
         ipcRenderer.invoke('settings:update', {
-            magic: magic.checked
+            theme: theme.checked
         });
 
         return updateLabels();

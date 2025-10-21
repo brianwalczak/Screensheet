@@ -230,7 +230,7 @@ io.on('connection', (socket) => {
 
 (async () => {
     try {
-        const defaults = { port: 3000, audio: true, control: true, magic: false, method: 'webrtc' };
+        const defaults = { port: 3000, audio: true, control: true, theme: false, method: 'webrtc' };
         let data;
 
         if (fs.existsSync(settingsPath)) {
