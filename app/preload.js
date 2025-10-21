@@ -315,14 +315,13 @@ window.addEventListener('DOMContentLoaded', () => {
     // Handles incoming connection requests from viewers
     async function onRequest(event, { sessionId, auth = false, ip = null }) {
         if (!connection) return;
-
         connection.addOffer(sessionId, { ip });
 
         if (auth) {
             await approve(sessionId);
-        } else {
-            document.querySelector('.tab-btn.connections').click();
         }
+        
+        document.querySelector('.tab-btn.connections').click();
     };
 
     // Handles incoming session answers from viewers for connection
