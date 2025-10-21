@@ -65,6 +65,7 @@ const labels = {
 
 // Returns the correct label based on whether theme mode is enabled
 function getLabel(key) {
+    if (!theme) return labels.normal[key];
     return theme.checked ? labels.theme[key] : labels.normal[key];
 };
 
