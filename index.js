@@ -172,7 +172,7 @@ io.on('connection', (socket) => {
 
     // Repeat session requests from viewers trying to connect to the host
     socket.on('session:request', async (payload) => {
-        if (!payload || !activeCode || (!payload.code && (!payload.username || !payload.password))) return socket.emit('error', 404);
+        if (!payload || !activeCode || (!payload.code && (!payload.username || !payload.password)) || (payload.username && payload.password && !settings?.login)) return socket.emit('error', 404);
         if (payload.code && payload.code !== activeCode) return socket.emit('error', 404);
 
         if (payload.username && payload.password) {
