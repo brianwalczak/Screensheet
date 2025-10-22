@@ -63,76 +63,78 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Updates all labels on the page based on the current mode
     function updateLabels() {
-        document.title = getLabel('appTitle');
+        try {
+            document.title = getLabel('appTitle');
 
-        document.querySelector('.title').textContent = getLabel('title');
-        document.querySelector('.description').textContent = getLabel('description');
-        document.querySelector('.code_label').textContent = getLabel('codeLabel');
-        document.querySelector('.warning_title').textContent = getLabel('warningTitle');
-        document.querySelector('.warning_description').innerHTML = getLabel('warningDescription');
+            document.querySelector('.title').textContent = getLabel('title');
+            document.querySelector('.description').textContent = getLabel('description');
+            document.querySelector('.code_label').textContent = getLabel('codeLabel');
+            document.querySelector('.warning_title').textContent = getLabel('warningTitle');
+            document.querySelector('.warning_description').innerHTML = getLabel('warningDescription');
 
-        start.textContent = getLabel('startBtn');
-        stop.textContent = getLabel('endBtn');
-        copy.textContent = getLabel('copyBtn');
-        status.textContent = findMatching(status.textContent, (theme.checked ? 'normal' : 'theme')) ?? status.textContent;
+            start.textContent = getLabel('startBtn');
+            stop.textContent = getLabel('endBtn');
+            copy.textContent = getLabel('copyBtn');
+            status.textContent = findMatching(status.textContent, (theme.checked ? 'normal' : 'theme')) ?? status.textContent;
 
-        document.querySelector('.settings-div span[for="audio"]').textContent = getLabel('audioSharing');
-        document.querySelector('.settings-div span[for="control"]').textContent = getLabel('remoteControl');
-        document.querySelector('.settings-div span[for="port"]').textContent = getLabel('serverPort');
-        document.querySelector('.settings-div span[for="method"]').textContent = getLabel('connectionMethod');
-        document.querySelector('.settings-div span[for="login"]').textContent = getLabel('unattendedAccess');
+            document.querySelector('.settings-div span[for="audio"]').textContent = getLabel('audioSharing');
+            document.querySelector('.settings-div span[for="control"]').textContent = getLabel('remoteControl');
+            document.querySelector('.settings-div span[for="port"]').textContent = getLabel('serverPort');
+            document.querySelector('.settings-div span[for="method"]').textContent = getLabel('connectionMethod');
+            document.querySelector('.settings-div span[for="login"]').textContent = getLabel('unattendedAccess');
 
-        document.querySelector('.tab-btn.home').textContent = getLabel('menu_home');
-        document.querySelector('.tab-btn.connections').textContent = getLabel('menu_connections');
-        document.querySelector('.tab-btn.settings').textContent = getLabel('menu_settings');
+            document.querySelector('.tab-btn.home').textContent = getLabel('menu_home');
+            document.querySelector('.tab-btn.connections').textContent = getLabel('menu_connections');
+            document.querySelector('.tab-btn.settings').textContent = getLabel('menu_settings');
 
-        if (theme.checked) {
-            document.body.classList.remove('bg-white');
-            document.body.classList.add('bg-orange-100');
+            if (theme.checked) {
+                document.body.classList.remove('bg-white');
+                document.body.classList.add('bg-orange-100');
 
-            document.querySelectorAll('.settings-div').forEach(div => {
-                div.classList.remove('bg-gray-50');
-                div.classList.remove('border-gray-200');
-                div.classList.add('bg-orange-50');
-                div.classList.add('border-orange-200');
-            });
+                document.querySelectorAll('.settings-div').forEach(div => {
+                    div.classList.remove('bg-gray-50');
+                    div.classList.remove('border-gray-200');
+                    div.classList.add('bg-orange-50');
+                    div.classList.add('border-orange-200');
+                });
 
-            document.querySelectorAll('.connection_items div').forEach(div => {
-                div.classList.remove('bg-white');
-                div.classList.remove('border-gray-200');
-                div.classList.add('bg-orange-50');
-                div.classList.add('border-orange-200');
-            });
+                document.querySelectorAll('.connection_items div').forEach(div => {
+                    div.classList.remove('bg-white');
+                    div.classList.remove('border-gray-200');
+                    div.classList.add('bg-orange-50');
+                    div.classList.add('border-orange-200');
+                });
 
-            themeToggle.classList.remove('bg-white');
-            themeToggle.classList.remove('hover:bg-gray-100');
-            themeToggle.classList.add('bg-orange-200');
-            themeToggle.classList.add('hover:bg-orange-300');
-        } else {
-            document.body.classList.remove('bg-orange-100');
-            document.body.classList.add('bg-white');
+                themeToggle.classList.remove('bg-white');
+                themeToggle.classList.remove('hover:bg-gray-100');
+                themeToggle.classList.add('bg-orange-200');
+                themeToggle.classList.add('hover:bg-orange-300');
+            } else {
+                document.body.classList.remove('bg-orange-100');
+                document.body.classList.add('bg-white');
 
-            document.querySelectorAll('.settings-div').forEach(div => {
-                div.classList.remove('bg-orange-50');
-                div.classList.remove('border-orange-200');
-                div.classList.add('bg-gray-50');
-                div.classList.add('border-gray-200');
-            });
+                document.querySelectorAll('.settings-div').forEach(div => {
+                    div.classList.remove('bg-orange-50');
+                    div.classList.remove('border-orange-200');
+                    div.classList.add('bg-gray-50');
+                    div.classList.add('border-gray-200');
+                });
 
-            document.querySelectorAll('.connection_items div').forEach(div => {
-                div.classList.remove('bg-orange-50');
-                div.classList.remove('border-orange-200');
-                div.classList.add('bg-white');
-                div.classList.add('border-gray-200');
-            });
+                document.querySelectorAll('.connection_items div').forEach(div => {
+                    div.classList.remove('bg-orange-50');
+                    div.classList.remove('border-orange-200');
+                    div.classList.add('bg-white');
+                    div.classList.add('border-gray-200');
+                });
 
-            themeToggle.classList.remove('bg-orange-200');
-            themeToggle.classList.remove('hover:bg-orange-300');
-            themeToggle.classList.add('bg-white');
-            themeToggle.classList.add('hover:bg-gray-100');
-        }
+                themeToggle.classList.remove('bg-orange-200');
+                themeToggle.classList.remove('hover:bg-orange-300');
+                themeToggle.classList.add('bg-white');
+                themeToggle.classList.add('hover:bg-gray-100');
+            }
 
-        updateConnections(); // update connections list to reflect new labels + bg
+            updateConnections(); // update connections list to reflect new labels + bg
+        } catch { };
     }
 
     // Load the settings configuration from the main process
@@ -146,7 +148,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
             login.checked = (settings.login ?? false);
             username.value = (settings.username ?? '');
-            // will be adding bcryptjs later so no password storage!
+            // we're using hashed password w/ bcrypt so no updating password!
 
             toggleChange(audioToggle, audio.checked);
             toggleChange(controlToggle, control.checked);
@@ -158,30 +160,35 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Gets the display media (screen + audio) and prepares for sharing
     async function createDisplay() {
-        const screen = await ipcRenderer.invoke('display');
+        try {
+            const screen = await ipcRenderer.invoke('display');
 
-        display = await navigator.mediaDevices.getUserMedia({
-            audio: {
-                mandatory: {
-                    chromeMediaSource: 'desktop',
-                }
-            },
-            video: {
-                mandatory: {
-                    chromeMediaSource: 'desktop',
-                    chromeMediaSourceId: screen.display[0].id,
-                    minFrameRate: 30,
-                    maxFrameRate: 120,
-                    minWidth: screen.width,
-                    minHeight: screen.height,
-                    maxWidth: screen.width,
-                    maxHeight: screen.height,
+            display = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    mandatory: {
+                        chromeMediaSource: 'desktop',
+                    }
                 },
-            },
-        });
+                video: {
+                    mandatory: {
+                        chromeMediaSource: 'desktop',
+                        chromeMediaSourceId: screen.display[0].id,
+                        minFrameRate: 30,
+                        maxFrameRate: 120,
+                        minWidth: screen.width,
+                        minHeight: screen.height,
+                        maxWidth: screen.width,
+                        maxHeight: screen.height,
+                    },
+                },
+            });
 
-        screenSize = { width: screen.width, height: screen.height };
-        return display;
+            screenSize = { width: screen.width, height: screen.height };
+            return display;
+        } catch (error) {
+            console.error("An error occurred while capturing the display: ", error);
+            return null;
+        }
     }
 
     // Updates the status text and color based on the current state
@@ -257,33 +264,37 @@ window.addEventListener('DOMContentLoaded', () => {
 
         if (connection) {
             for (let [sessionId, meta] of connection.getPending().entries()) {
-                const item = document.querySelector('.connection_items .pending_item').cloneNode(true);
-                item.querySelector('.item_name').textContent = (meta.ip ?? sessionId);
+                try {
+                    const item = document.querySelector('.connection_items .pending_item').cloneNode(true);
+                    item.querySelector('.item_name').textContent = (meta.ip ?? sessionId);
 
-                item.querySelector('.item_accept').addEventListener('click', async () => {
-                    return approve(sessionId);
-                });
+                    item.querySelector('.item_accept').addEventListener('click', async () => {
+                        return approve(sessionId);
+                    });
 
-                item.querySelector('.item_decline').addEventListener('click', async () => {
-                    return decline(sessionId);
-                });
+                    item.querySelector('.item_decline').addEventListener('click', async () => {
+                        return decline(sessionId);
+                    });
 
-                list.appendChild(item);
+                    list.appendChild(item);
+                } catch { };
             }
 
             for (let [sessionId, meta] of Object.entries(connection.filterConnections('connected'))) {
-                const item = document.querySelector('.connection_items .active_item').cloneNode(true);
+                try {
+                    const item = document.querySelector('.connection_items .active_item').cloneNode(true);
 
-                item.querySelector('.item_name').textContent = (meta?.ip ?? sessionId);
+                    item.querySelector('.item_name').textContent = (meta?.ip ?? sessionId);
 
-                const minutesAgo = Math.floor((Date.now() - meta?.connectedAt) / 60000);
-                item.querySelector('.item_text').textContent = (minutesAgo === 0 ? getLabel('connectionsLabel').replace('{status}', 'just now') : getLabel('connectionsLabel').replace('{status}', `${minutesAgo}m ago`));
+                    const minutesAgo = Math.floor((Date.now() - meta?.connectedAt) / 60000);
+                    item.querySelector('.item_text').textContent = (minutesAgo === 0 ? getLabel('connectionsLabel').replace('{status}', 'just now') : getLabel('connectionsLabel').replace('{status}', `${minutesAgo}m ago`));
 
-                item.querySelector('.item_disconnect').addEventListener('click', async () => {
-                    return disconnect(sessionId);
-                });
+                    item.querySelector('.item_disconnect').addEventListener('click', async () => {
+                        return disconnect(sessionId);
+                    });
 
-                list.appendChild(item);
+                    list.appendChild(item);
+                } catch { };
             }
         }
 
@@ -324,7 +335,7 @@ window.addEventListener('DOMContentLoaded', () => {
         if (auth) {
             await approve(sessionId);
         }
-        
+
         document.querySelector('.tab-btn.connections').click();
     };
 
