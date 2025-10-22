@@ -1,5 +1,5 @@
 const { screen } = require("@nut-tree-fork/nut-js");
-const { app: electron, BrowserWindow, ipcMain, desktopCapturer } = require('electron');
+const { app: electron, BrowserWindow, ipcMain, desktopCapturer, systemPreferences } = require('electron');
 const { mouseEvent, keyboardEvent } = require('./remote');
 const bcrypt = require('bcryptjs');
 const express = require('express');
@@ -57,7 +57,20 @@ function createWindow() {
     });
 }
 
-electron.whenReady().then(() => {
+electron.whenReady().then(async () => {
+    // Check screen recording permission on macOS
+    if (process.platform === 'darwin') {
+        const permission = systemPreferences.getMediaAccessStatus('screen');
+        
+        if (permission !== 'granted') {
+            const granted = await systemPreferences.askForMediaAccess('screen');
+            
+            if (!granted) {
+                console.warn('Screen recording permission has been denied.');
+            }
+        }
+    }
+
     createWindow();
 
     electron.on('activate', () => {
