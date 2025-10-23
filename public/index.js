@@ -5,7 +5,10 @@ const connect = document.querySelector('#connect-btn');
 const error_container = document.querySelector('#error-message');
 const video_container = document.querySelector('#video-container');
 const error = document.querySelector('#error-text');
+
 const video = document.querySelector('#video-container video');
+const canvas = document.querySelector('#video-container canvas');
+const ctx = canvas.getContext("2d");
 
 import WebRTCConnection from './libs/webrtc.js';
 import WebSocketConnection from './libs/websocket.js';
@@ -128,11 +131,11 @@ function calculatePos(event) {
     try {
         if (!connection || !connection.screenSize) return { x: 0, y: 0 };
 
-        const videoOffset = video.getBoundingClientRect();
+        const videoOffset = canvas.getBoundingClientRect();
         const xRelativeToVideo = event.clientX - videoOffset.left;
         const yRelativeToVideo = event.clientY - videoOffset.top;
-        const xInScreen = (xRelativeToVideo / video.clientWidth) * connection.screenSize.width;
-        const yInScreen = (yRelativeToVideo / video.clientHeight) * connection.screenSize.height;
+        const xInScreen = (xRelativeToVideo / canvas.clientWidth) * connection.screenSize.width;
+        const yInScreen = (yRelativeToVideo / canvas.clientHeight) * connection.screenSize.height;
 
         return { x: xInScreen, y: yInScreen };
     } catch {
@@ -189,13 +192,23 @@ const scrollEvent = (event) => {
     } catch (error) { console.log(error); };
 };
 
-video.addEventListener('contextmenu', (e) => e.preventDefault());
+canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+video.addEventListener('loadedmetadata', () => {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    drawFrame();
+});
+
+function drawFrame() {
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    video.requestVideoFrameCallback(drawFrame);
+}
 
 // -- Mouse Input -- //
-video.addEventListener('pointermove', pointerEvent); // pointer was moved
-video.addEventListener('pointerdown', pointerEvent); // pointer button was pressed down
-video.addEventListener('pointerup', pointerEvent); // pointer button was lifted up
-video.addEventListener('wheel', scrollEvent); // pointer was scrolled
+canvas.addEventListener('pointermove', pointerEvent); // pointer was moved
+canvas.addEventListener('pointerdown', pointerEvent); // pointer button was pressed down
+canvas.addEventListener('pointerup', pointerEvent); // pointer button was lifted up
+canvas.addEventListener('wheel', scrollEvent); // pointer was scrolled
 
 // -- Keyboard Input -- //
 window.addEventListener('keydown', keyEvent); // key was pressed down
