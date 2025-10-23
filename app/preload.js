@@ -140,7 +140,7 @@ window.addEventListener('DOMContentLoaded', () => {
     // Load the settings configuration from the main process
     ipcRenderer.invoke('settings:load').then(settings => {
         if (settings) {
-            theme.checked = (settings.theme ?? false);
+            theme.checked = (settings.theme ?? true);
             audio.checked = (settings.audio ?? true);
             control.checked = (settings.control ?? true);
             port.value = (settings.port ?? 3000);
