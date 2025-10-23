@@ -1,5 +1,5 @@
 const { contextBridge, ipcRenderer } = require('electron');
-const { mouseEvent, keyboardEvent } = require('../remote.js');
+const { pointerEvent, keyboardEvent, scrollEvent } = require('../remote.js');
 const { getLabel, findMatching } = require('./translations.js');
 const WebRTCConnection = require('./libs/webrtc.js');
 const WebSocketConnection = require('./libs/websocket.js');
@@ -214,11 +214,14 @@ window.addEventListener('DOMContentLoaded', () => {
 
                 if (message.name && message.method && control.checked) { // only allow control if enabled
                     switch (message.name) {
-                        case 'mouse':
-                            mouseEvent(message);
+                        case 'pointer':
+                            pointerEvent(message);
                             break;
                         case 'keyboard':
                             keyboardEvent(message);
+                            break;
+                        case 'scroll':
+                            scrollEvent(message);
                             break;
                     }
                 }

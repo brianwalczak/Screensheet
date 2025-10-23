@@ -1,6 +1,6 @@
 const { screen } = require("@nut-tree-fork/nut-js");
 const { app: electron, BrowserWindow, ipcMain, desktopCapturer, systemPreferences } = require('electron');
-const { mouseEvent, keyboardEvent } = require('./remote');
+const { pointerEvent, keyboardEvent, scrollEvent } = require('./remote');
 const bcrypt = require('bcryptjs');
 const express = require('express');
 const path = require('path');
@@ -238,16 +238,22 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('nutjs:mouse', (data) => {
+    socket.on('nutjs:pointer', (data) => {
         if (!ws.has(sessionId) || !settings.control || !data) return;
 
-        mouseEvent(data);
+        pointerEvent(data);
     });
 
     socket.on('nutjs:keyboard', (data) => {
         if (!ws.has(sessionId) || !settings.control || !data) return;
 
         keyboardEvent(data);
+    });
+
+    socket.on('nutjs:scroll', (data) => {
+        if (!ws.has(sessionId) || !settings.control || !data) return;
+
+        scrollEvent(data);
     });
 
     // Remove peer connection when viewer disconnects

@@ -67,7 +67,7 @@ socket.on('session:offer', async (data) => {
     connection = data.type === 'websocket' ? new WebSocketConnection(socket) : new WebRTCConnection();
 
     const handshake = await connection.acceptOffer(data.offer, onDisconnect);
-    
+
     if (handshake) {
         socket.emit('session:answer', handshake);
     } else {
@@ -127,7 +127,7 @@ socket.on('session:disconnect', onDisconnect);
 function calculatePos(event) {
     try {
         if (!connection || !connection.screenSize) return { x: 0, y: 0 };
-        
+
         const videoOffset = video.getBoundingClientRect();
         const xRelativeToVideo = event.clientX - videoOffset.left;
         const yRelativeToVideo = event.clientY - videoOffset.top;
@@ -140,19 +140,18 @@ function calculatePos(event) {
     }
 }
 
-const mouseEvent = (event) => {
+const pointerEvent = (event) => {
     if (!connection || !connection.eventsReady || !connection.screenSize) return;
     event.preventDefault();
 
     try {
         const { x, y } = calculatePos(event);
-        let data = { name: 'mouse', x: Math.floor(x), y: Math.floor(y), method: event.type };
+        let data = { name: 'pointer', x: Math.floor(x), y: Math.floor(y), method: event.type };
 
-        if (event.type === 'mouseup' || event.type === 'mousedown') {
-            const button = event.which === 1 || event.button === 0 ? 'LEFT' : event.which === 3 || event.button === 2 ? 'RIGHT' : null;
-            if (button) { data.button = button } else { return; };
+        if ((event.type === 'pointerup' || event.type === 'pointerdown') && event.button !== undefined) {
+            data.button = event.button;
         }
-        
+
         connection.sendEvent(data);
     } catch { };
 };
@@ -174,12 +173,28 @@ const keyEvent = (event) => {
     } catch { };
 };
 
+const scrollEvent = (event) => {
+    if (!connection || !connection.eventsReady || !connection.screenSize) return;
+
+    try {
+        const { deltaX, deltaY } = event;
+
+        connection.sendEvent({
+            name: 'scroll',
+            method: event.type,
+            deltaX: Math.sign(deltaX) * Math.min(Math.abs(deltaX), 100),
+            deltaY: Math.sign(deltaY) * Math.min(Math.abs(deltaY), 100)
+        });
+    } catch (error) { console.log(error); };
+};
+
 video.addEventListener('contextmenu', (e) => e.preventDefault());
 
 // -- Mouse Input -- //
-video.addEventListener('mousemove', mouseEvent); // mouse was moved
-video.addEventListener('mousedown', mouseEvent); // mouse button was pressed down
-video.addEventListener('mouseup', mouseEvent); // mouse button was lifted up
+video.addEventListener('pointermove', pointerEvent); // pointer was moved
+video.addEventListener('pointerdown', pointerEvent); // pointer button was pressed down
+video.addEventListener('pointerup', pointerEvent); // pointer button was lifted up
+video.addEventListener('wheel', scrollEvent); // pointer was scrolled
 
 // -- Keyboard Input -- //
 window.addEventListener('keydown', keyEvent); // key was pressed down

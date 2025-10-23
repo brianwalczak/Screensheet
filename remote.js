@@ -1,17 +1,18 @@
-const { mouse, keyboard, Key, Button, Point } = require("@nut-tree-fork/nut-js");
+const { mouse, keyboard, Key, Point } = require("@nut-tree-fork/nut-js");
 const keymaps = require('./keymaps');
 
-// Handles mouse events, repeated by the host from viewer input
-async function mouseEvent(data) {
+// Handles pointer events, repeated by the host from viewer input
+async function pointerEvent(data) {
     try {
         const { x, y, method } = data;
         await mouse.move(new Point(x, y));
 
-        if (data?.button && (method === 'mousedown' || method === 'mouseup')) {
-            const type = (method === 'mousedown' ? 'pressButton' : 'releaseButton');
-            await mouse[type](Button[data.button]);
+        if (data.button !== undefined && (method === 'pointerdown' || method === 'pointerup')) {
+            const type = (method === 'pointerdown' ? 'pressButton' : 'releaseButton');
+
+            await mouse[type](data.button);
         }
-    } catch { };
+    } catch (error) { console.log(error) };
 };
 
 // Handles keyboard events, repeated by the host from viewer input
@@ -35,4 +36,18 @@ async function keyboardEvent(data) {
     } catch { };
 };
 
-module.exports = { mouseEvent, keyboardEvent };
+async function scrollEvent(data) {
+    try {
+        const { deltaX, deltaY } = data;
+
+        if (deltaY > 0) {
+            await mouse.scrollDown(Math.abs(deltaY));
+        } else if (deltaY < 0) {
+            await mouse.scrollUp(Math.abs(deltaY));
+        }
+    } catch (error) { 
+        console.log(error);
+    }
+}
+
+module.exports = { pointerEvent, keyboardEvent, scrollEvent };
