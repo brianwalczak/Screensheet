@@ -177,13 +177,14 @@ const scrollEvent = (event) => {
     if (!connection || !connection.eventsReady || !connection.screenSize) return;
 
     try {
-        const { deltaX, deltaY } = event;
+        const { deltaX, deltaY, deltaMode } = event;
 
         connection.sendEvent({
             name: 'scroll',
             method: event.type,
-            deltaX: Math.sign(deltaX) * Math.min(Math.abs(deltaX), 100),
-            deltaY: Math.sign(deltaY) * Math.min(Math.abs(deltaY), 100)
+            deltaX: deltaX,
+            deltaY: deltaY,
+            deltaMode: deltaMode
         });
     } catch (error) { console.log(error); };
 };

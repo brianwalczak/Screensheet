@@ -12,7 +12,7 @@ async function pointerEvent(data) {
 
             await mouse[type](data.button);
         }
-    } catch (error) { console.log(error) };
+    } catch { };
 };
 
 // Handles keyboard events, repeated by the host from viewer input
@@ -38,16 +38,25 @@ async function keyboardEvent(data) {
 
 async function scrollEvent(data) {
     try {
-        const { deltaX, deltaY } = data;
+        let { deltaX, deltaY, deltaMode } = data;
+
+        if (deltaMode === 1) { // lines (average)
+            deltaX = deltaX * 15;
+            deltaY = deltaY * 15;
+        }
 
         if (deltaY > 0) {
             await mouse.scrollDown(Math.abs(deltaY));
         } else if (deltaY < 0) {
             await mouse.scrollUp(Math.abs(deltaY));
         }
-    } catch (error) { 
-        console.log(error);
-    }
+
+        if (deltaX > 0) {
+            await mouse.scrollRight(Math.abs(deltaX));
+        } else if (deltaX < 0) {
+            await mouse.scrollLeft(Math.abs(deltaX));
+        }
+    } catch { };
 }
 
 module.exports = { pointerEvent, keyboardEvent, scrollEvent };
