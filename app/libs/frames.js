@@ -46,7 +46,7 @@ class StreamFrames {
                         mandatory: {
                             chromeMediaSource: 'desktop',
                             chromeMediaSourceId: this.screen.display[0].id,
-                            frameRate: { ideal: this.config.fps, max: this.config.fps },
+                            frameRate: { min: this.config.fps - 5, ideal: this.config.fps, max: this.config.fps + 5 },
                             minWidth: this.screen.width,
                             minHeight: this.screen.height,
                             maxWidth: this.screen.width,

@@ -173,8 +173,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     mandatory: {
                         chromeMediaSource: 'desktop',
                         chromeMediaSourceId: screen.display[0].id,
-                        minFrameRate: 30,
-                        maxFrameRate: 120,
+                        frameRate: { min: 15, ideal: 30, max: 60 },
                         minWidth: screen.width,
                         minHeight: screen.height,
                         maxWidth: screen.width,
