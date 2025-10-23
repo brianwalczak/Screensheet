@@ -1,6 +1,9 @@
 const { mouse, keyboard, Key, Point } = require("@nut-tree-fork/nut-js");
 const keymaps = require('./keymaps');
 
+mouse.config.autoDelayMs = 0;
+keyboard.config.autoDelayMs = 0;
+
 // Handles pointer events, repeated by the host from viewer input
 async function pointerEvent(data) {
     try {
