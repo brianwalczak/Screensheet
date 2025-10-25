@@ -1,6 +1,5 @@
 const video_container = document.querySelector('#video-container');
-const canvas = document.querySelector('#video-container canvas');
-const ctx = canvas.getContext('2d');
+const video = document.querySelector('#video-container video');
 
 class WebSocketConnection {
     constructor(socket = null) {
@@ -12,10 +11,6 @@ class WebSocketConnection {
         if (socket && typeof socket.on !== "function") {
             console.warn("An invalid socket instance was provided, defaulting to new.");
             socket = io(); // create a new socket instance
-        }
-
-        if (!window.createImageBitmap) {
-            console.warn("createImageBitmap is not supported on this browser, performance may be degraded. :[");
         }
 
         this.socket = socket || io();
@@ -34,55 +29,19 @@ class WebSocketConnection {
         this._disconnectHandler = onDisconnect;
 
         try {
-            canvas.width = this.screenSize.width;
-            canvas.height = this.screenSize.height;
+            const mediaSource = new MediaSource();
+            let sourceBuffer = null;
 
-            // if an initial frame is provided, render it first
-            if (offer.frame) {
-                const img = new Image();
-                img.src = URL.createObjectURL(new Blob([offer.frame], { type: 'image/webp' }));
+            video.src = URL.createObjectURL(mediaSource);
+            mediaSource.addEventListener('sourceopen', () => {
+                if (!offer.codec) return alert('Whoops, looks like your browser does not support the required codec!');
 
-                img.onload = () => {
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    URL.revokeObjectURL(img.src);
-                };
-            }
+                sourceBuffer = mediaSource.addSourceBuffer(offer.codec);
+            });
 
-            this.socket.on('stream:frame', async (arr) => {
-                for (const chunk of arr) {
-                    try {
-                        if (!chunk) return;
-                        const { x = 0, y = 0, w, h, data } = chunk;
-                        const blob = new Blob([data], { type: 'image/webp' });
-
-                        if (!window.createImageBitmap) {
-                            console.warn("createImageBitmap is not supported, performance may be degraded.");
-                        }
-
-                        if (typeof createImageBitmap === 'function') {
-                            const bitmap = await createImageBitmap(blob);
-
-                            ctx.drawImage(bitmap, x, y, (w || bitmap.width), (h || bitmap.height));
-                            bitmap.close && bitmap.close();
-                        } else {
-                            const url = URL.createObjectURL(blob);
-                            const img = new Image();
-
-                            img.onload = () => {
-                                try {
-                                    ctx.drawImage(img, x, y, (w || img.width), (h || img.height));
-                                } catch { };
-
-                                URL.revokeObjectURL(url);
-                            };
-
-                            img.onerror = () => {
-                                URL.revokeObjectURL(url);
-                            };
-
-                            img.src = url;
-                        }
-                    } catch { };
+            this.socket.on('stream:frame', async (chunk) => {
+                if (sourceBuffer && !sourceBuffer.updating) {
+                    sourceBuffer.appendBuffer(chunk);
                 }
             });
 

@@ -77,15 +77,13 @@ class WebSocketConnection {
             return null;
         }
 
-        const initial = await this.frames.fullFrame();
-
         return {
             sessionId: socketId,
             type: "websocket",
             offer: {
-                frame: initial,
                 width: screenSize.width,
-                height: screenSize.height
+                height: screenSize.height,
+                codec: this.frames.codec
             }
         };
     }
