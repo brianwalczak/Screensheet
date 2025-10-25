@@ -6,6 +6,7 @@
 
 ## Features
 - (🖥️) Instantly share your desktop remotely with a secure, 8-digit connection code.
+- (🔐) Unattended access support with secure user/password authentication (hashed with bcrypt.js).
 - (⚡) No account or signup required - start a session in seconds, right on your network.
 - (🌐) Web-based viewer for easy access from any device, powered by WebRTC/WebSockets.
 - (📶) Multi-protocol support allows you to switch between WebRTC and WebSockets effortlessly.
@@ -16,16 +17,27 @@
 - (📦) Built with Node.js and Electron for cross-platform support.
 - (👤) Open-source under Apache 2.0 license - contribute or view it anytime.
 
+## What's new? (v1.3.0)
+- Support for unattended access with username/password authentication
+- Updated magic theme to feature a new autumn theme!
+- Major fixes and improvements for error handling
+- Fixed permissions and cross-platform testing on Windows, macOS, and Linux
+- Major input handling improvements, including mobile support with touchscreens
+- Removed “Automatic” option from protocol dropdown (WebRTC is default)
+- Included tooltips in settings with recommendations
+- Better formatting/naming system for IP addresses in connections list
+- Added logo for application and favicon for website
+
 ## Demonstration
 
 ### Creating a Session
-https://github.com/user-attachments/assets/ce5c4689-de2f-4659-b947-097dce9cdb4a
+https://github.com/user-attachments/assets/37a4ada9-67e2-4964-ac90-3d86231351c7
 
 ### Viewing a Session
-https://github.com/user-attachments/assets/45157dbe-762e-4b7a-8ae8-21c9e709c807
+https://github.com/user-attachments/assets/40f3a9fd-9f43-44d6-aa8c-9d586e276eab
 
 ### Autumn Mode 🍁
-https://github.com/user-attachments/assets/647269da-ff69-462d-8de6-e7c57b2ed7d8
+https://github.com/user-attachments/assets/22e16e52-9bf9-467a-b17b-aa15dea5bf9a
 
 
 ## Getting Started
