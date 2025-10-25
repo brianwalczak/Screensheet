@@ -17,6 +17,7 @@
   "license": "Apache-2.0",
   "build": {
     "appId": "com.brianwalczak.screensheet",
+    "icon": "public/logo.png",
     "win": {
       "target": [
         {
@@ -26,7 +27,8 @@
             "arm64"
           ]
         }
-      ]
+      ],
+      "icon": "public/logo.png"
     },
     "mac": {
       "target": [

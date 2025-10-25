@@ -38,6 +38,7 @@ function createWindow() {
         width: 400,
         height: 590,
         resizable: false,
+        icon: path.join(__dirname, 'public', 'logo.png'),
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: true,
