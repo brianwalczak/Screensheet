@@ -1,5 +1,5 @@
 <h1 align="center">Screensheet - The local remote desktop.</h1>
-<p align="center">A Node.js application that allows you to use your device from anywhere with remote desktop, powered by WebRTC, Socket.IO, and Electron.</p>
+<p align="center">A Node.js application that allows you to use your device from anywhere with remote desktop, powered by WebRTC, Socket.IO, and Electron.<br><br> <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg"></a> <img src="https://hackatime-badge.hackclub.com/U091MEESEDT/Screensheet/?label=Time%20Spent" /></p>
 
 > [!WARNING]
 > **This project is currently in its beta state as I gather user feedback. If you encounter any issues, please report them <a href='https://github.com/BrianWalczak/Screensheet/issues'>here</a> :)**
