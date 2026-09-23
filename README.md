@@ -13,7 +13,6 @@
 - (⌨️) Real-time keyboard and mouse input forwarding that can be enabled or disabled.
 - (🔊) Optional device audio sharing that can be enabled or disabled.
 - (👥) View, accept, decline, and disconnect visitors with ease.
-- (🍁) Autumn is finally here, featuring a fall-themed user interface!
 - (📦) Built with Node.js and Electron for cross-platform support.
 - (👤) Open-source under Apache 2.0 license - contribute or view it anytime.
 
@@ -35,9 +34,6 @@ https://github.com/user-attachments/assets/37a4ada9-67e2-4964-ac90-3d86231351c7
 
 ### Viewing a Session
 https://github.com/user-attachments/assets/40f3a9fd-9f43-44d6-aa8c-9d586e276eab
-
-### Autumn Mode 🍁
-https://github.com/user-attachments/assets/22e16e52-9bf9-467a-b17b-aa15dea5bf9a
 
 
 ## Getting Started

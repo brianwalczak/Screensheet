@@ -1,6 +1,5 @@
 const { contextBridge, ipcRenderer } = require('electron');
 const { pointerEvent, keyboardEvent, scrollEvent } = require('../remote.js');
-const { getLabel, findMatching } = require('./translations.js');
 const WebRTCConnection = require('./libs/webrtc.js');
 const WebSocketConnection = require('./libs/websocket.js');
 
@@ -9,9 +8,6 @@ let display = null; // the current display media stream
 let screenSize = null; // the dimensions of `display` param
 
 window.addEventListener('DOMContentLoaded', () => {
-    const themeToggle = document.querySelector('#theme_toggle');
-    const theme = document.querySelector('#theme');
-
     const input = document.querySelector('#code');
     const status = document.querySelector('#status');
     const statusDot = document.querySelector('#status_dot');
@@ -61,86 +57,9 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Updates all labels on the page based on the current mode
-    function updateLabels() {
-        try {
-            document.title = getLabel('appTitle');
-
-            document.querySelector('.title').textContent = getLabel('title');
-            document.querySelector('.description').textContent = getLabel('description');
-            document.querySelector('.code_label').textContent = getLabel('codeLabel');
-            document.querySelector('.warning_title').textContent = getLabel('warningTitle');
-            document.querySelector('.warning_description').innerHTML = getLabel('warningDescription');
-
-            start.textContent = getLabel('startBtn');
-            stop.textContent = getLabel('endBtn');
-            copy.textContent = getLabel('copyBtn');
-            status.textContent = findMatching(status.textContent, (theme.checked ? 'normal' : 'theme')) ?? status.textContent;
-
-            document.querySelector('.settings-div span[for="audio"]').textContent = getLabel('audioSharing');
-            document.querySelector('.settings-div span[for="control"]').textContent = getLabel('remoteControl');
-            document.querySelector('.settings-div span[for="port"]').textContent = getLabel('serverPort');
-            document.querySelector('.settings-div span[for="method"]').textContent = getLabel('connectionMethod');
-            document.querySelector('.settings-div span[for="login"]').textContent = getLabel('unattendedAccess');
-
-            document.querySelector('.tab-btn.home').textContent = getLabel('menu_home');
-            document.querySelector('.tab-btn.connections').textContent = getLabel('menu_connections');
-            document.querySelector('.tab-btn.settings').textContent = getLabel('menu_settings');
-
-            if (theme.checked) {
-                document.body.classList.remove('bg-white');
-                document.body.classList.add('bg-orange-100');
-
-                document.querySelectorAll('.settings-div').forEach(div => {
-                    div.classList.remove('bg-gray-50');
-                    div.classList.remove('border-gray-200');
-                    div.classList.add('bg-orange-50');
-                    div.classList.add('border-orange-200');
-                });
-
-                document.querySelectorAll('.connection_items div').forEach(div => {
-                    div.classList.remove('bg-white');
-                    div.classList.remove('border-gray-200');
-                    div.classList.add('bg-orange-50');
-                    div.classList.add('border-orange-200');
-                });
-
-                themeToggle.classList.remove('bg-white');
-                themeToggle.classList.remove('hover:bg-gray-100');
-                themeToggle.classList.add('bg-orange-200');
-                themeToggle.classList.add('hover:bg-orange-300');
-            } else {
-                document.body.classList.remove('bg-orange-100');
-                document.body.classList.add('bg-white');
-
-                document.querySelectorAll('.settings-div').forEach(div => {
-                    div.classList.remove('bg-orange-50');
-                    div.classList.remove('border-orange-200');
-                    div.classList.add('bg-gray-50');
-                    div.classList.add('border-gray-200');
-                });
-
-                document.querySelectorAll('.connection_items div').forEach(div => {
-                    div.classList.remove('bg-orange-50');
-                    div.classList.remove('border-orange-200');
-                    div.classList.add('bg-white');
-                    div.classList.add('border-gray-200');
-                });
-
-                themeToggle.classList.remove('bg-orange-200');
-                themeToggle.classList.remove('hover:bg-orange-300');
-                themeToggle.classList.add('bg-white');
-                themeToggle.classList.add('hover:bg-gray-100');
-            }
-
-            updateConnections(); // update connections list to reflect new labels + bg
-        } catch { };
-    }
-
     // Load the settings configuration from the main process
     ipcRenderer.invoke('settings:load').then(settings => {
         if (settings) {
-            theme.checked = (settings.theme ?? true);
             audio.checked = (settings.audio ?? true);
             control.checked = (settings.control ?? true);
             port.value = (settings.port ?? 3000);
@@ -154,7 +73,6 @@ window.addEventListener('DOMContentLoaded', () => {
             toggleChange(controlToggle, control.checked);
             toggleChange(loginToggle, login.checked);
             if (login.checked) loginSettings.classList.remove('hidden');
-            if (theme.checked) updateLabels(); // only need to update if theme mode enabled (since not default)
         }
     });
 
@@ -289,7 +207,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     item.querySelector('.item_name').textContent = (meta?.ip ?? sessionId);
 
                     const minutesAgo = Math.floor((Date.now() - meta?.connectedAt) / 60000);
-                    item.querySelector('.item_text').textContent = (minutesAgo === 0 ? getLabel('connectionsLabel').replace('{status}', 'just now') : getLabel('connectionsLabel').replace('{status}', `${minutesAgo}m ago`));
+                    item.querySelector('.item_text').textContent = (minutesAgo === 0 ? 'Connected just now' : `Connected ${minutesAgo}m ago`);
 
                     item.querySelector('.item_disconnect').addEventListener('click', async () => {
                         return disconnect(sessionId);
@@ -315,13 +233,13 @@ window.addEventListener('DOMContentLoaded', () => {
 
         switch (state) {
             case "connected":
-                updateStatus(getLabel('connected'), 'bg-green-500');
+                updateStatus('Connected', 'bg-green-500');
                 break;
             case "disconnected":
                 if (shouldDisconnect) await disconnect(shouldDisconnect);
 
                 if (Object.keys(connection.filterConnections('connected')).length === 0) {
-                    updateStatus(getLabel('disconnected'), 'bg-red-500');
+                    updateStatus('Disconnected', 'bg-red-500');
                 }
                 break;
         }
@@ -360,17 +278,6 @@ window.addEventListener('DOMContentLoaded', () => {
             return updateConnections(); // no need to call statusChange since it was never an active connection
         }
     };
-
-    // Theme button switch event
-    themeToggle.addEventListener('click', () => {
-        theme.checked = (!theme.checked);
-
-        ipcRenderer.invoke('settings:update', {
-            theme: theme.checked
-        });
-
-        return updateLabels();
-    });
 
     // Audio toggle switch event
     audioToggle.addEventListener('click', async () => {
@@ -437,15 +344,15 @@ window.addEventListener('DOMContentLoaded', () => {
         start: async (forceAudio = false) => {
             if (!forceAudio && method.value === 'websocket' && audio.checked) audioToggle.click(); // disable audio if enabled, unless forced
 
-            updateStatus(getLabel('waiting'), 'bg-yellow-500');
-            start.innerHTML = getLabel('startingBtn');
+            updateStatus('Waiting', 'bg-yellow-500');
+            start.innerHTML = 'Starting session...';
 
             await createDisplay();
             start.classList.add('hidden');
             stop.classList.remove('hidden');
 
-            updateStatus(getLabel('active'), 'bg-green-500');
-            start.innerHTML = getLabel('startBtn');
+            updateStatus('Active', 'bg-green-500');
+            start.innerHTML = 'Start Session';
 
             input.value = await ipcRenderer.invoke('session:start');
             container.classList.remove('hidden');
@@ -464,7 +371,7 @@ window.addEventListener('DOMContentLoaded', () => {
             stop.classList.add('hidden');
             start.classList.remove('hidden');
 
-            updateStatus(getLabel('inactive'), 'bg-gray-400');
+            updateStatus('Inactive', 'bg-gray-400');
 
             input.value = '';
             container.classList.add('hidden');
@@ -481,10 +388,10 @@ window.addEventListener('DOMContentLoaded', () => {
             input.select();
             document.execCommand('copy');
             input.selectionEnd = input.selectionStart;
-            copy.textContent = getLabel('copiedBtn');
+            copy.textContent = 'Copied!';
 
             setTimeout(() => {
-                copy.textContent = getLabel('copyBtn');
+                copy.textContent = 'Copy';
             }, 1000);
         }
     };
