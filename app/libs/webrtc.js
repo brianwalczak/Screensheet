@@ -1,14 +1,25 @@
+const DEFAULT_ICE_SERVERS = [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun.cloudflare.com:3478" }
+];
+
 class WebRTCConnection {
-    constructor() {
+    constructor(iceServers) {
         if (!window.RTCPeerConnection) {
             alert('Whoops, looks like your device does not support WebRTC! You may need to use a different protocol, such as WebSockets.');
             throw new Error("WebRTC is not supported by this device.");
         }
 
+        this.setIceServers(iceServers);
         this.peers = {
             connected: new Map(), // stores active peer connections
             pending: new Map() // stores pending connection requests
         };
+    }
+
+    // Updates the ICE servers mid-session (only applies for new connections)
+    setIceServers(iceServers) {
+        this.iceServers = (Array.isArray(iceServers) && iceServers.length > 0) ? iceServers : DEFAULT_ICE_SERVERS; // validate ICE servers if present, otherwise use default
     }
 
     // Creates an empty audio track for when audio sharing is disabled
@@ -84,8 +95,11 @@ class WebRTCConnection {
         let meta = this.peers.pending.get(peerId);
         if (!meta) return null;
 
+        if (this.peers.connected.has(peerId)) return null; // already have (or are initiating) a connection for this peer
+
         this.removeOffer(peerId); // remove from wait list
-        this.peers.connected.set(peerId, { pc: new RTCPeerConnection(), meta: { connectedAt: Date.now(), ip: meta?.ip } });
+        const iceServers = this.iceServers; // retain ICE servers in case of changes mid-connection
+        this.peers.connected.set(peerId, { pc: new RTCPeerConnection({ iceServers }), meta: { connectedAt: Date.now(), ip: meta?.ip } });
 
         const pc = this.peers.connected.get(peerId)?.pc;
         if (!pc) return null;
@@ -113,13 +127,18 @@ class WebRTCConnection {
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
 
-            // Wait for connection to finish gathering ICE candidates
+            // Wait for connection to finish gathering ICE candidates (10 seconds max)
             await new Promise(resolve => {
                 if (pc.iceGatheringState === "complete") {
                     resolve();
                 } else {
+                    const timeout = setTimeout(resolve, 10000);
+
                     pc.onicegatheringstatechange = () => {
-                        if (pc.iceGatheringState === "complete") resolve();
+                        if (pc.iceGatheringState === "complete") {
+                            clearTimeout(timeout);
+                            resolve();
+                        }
                     };
                 }
             });
@@ -145,6 +164,7 @@ class WebRTCConnection {
         return {
             sessionId: peerId,
             type: "webrtc",
+            iceServers,
             offer: {
                 type: pc.localDescription.type,
                 sdp: pc.localDescription.sdp

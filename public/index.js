@@ -21,7 +21,7 @@ const inputChange = (e) => {
 };
 
 const inputPress = (e) => {
-    if (e.key === 'Enter') {
+    if (e.key === 'Enter' && !connect.disabled) {
         startConnection();
     }
 };
@@ -67,7 +67,7 @@ function errorCode(code) {
 socket.on('error', (code) => { errorCode(code); });
 socket.on('session:offer', async (data) => {
     if (data.declined) return errorCode(403);
-    connection = data.type === 'websocket' ? new WebSocketConnection(socket) : new WebRTCConnection();
+    connection = data.type === 'websocket' ? new WebSocketConnection(socket) : new WebRTCConnection(data.iceServers);
 
     const handshake = await connection.acceptOffer(data.offer, onDisconnect);
 
@@ -83,6 +83,8 @@ socket.on('session:offer', async (data) => {
 });
 
 async function startConnection() {
+    if (connect.disabled) return;
+
     let payload = {};
 
     switch (document.querySelector('.tab.code').classList.contains('hidden')) {

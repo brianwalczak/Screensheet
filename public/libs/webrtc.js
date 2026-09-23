@@ -1,14 +1,33 @@
 const video_container = document.querySelector('#video-container');
 const video = document.querySelector('#video-container video');
 
+const DEFAULT_ICE_SERVERS = [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun.cloudflare.com:3478" }
+];
+
+// Uses the STUN/TURN servers the host sent with its offer
+function createPeerConnection(iceServers) {
+    if (Array.isArray(iceServers) && iceServers.length > 0) {
+        try {
+            return new RTCPeerConnection({ iceServers });
+        } catch (error) {
+            console.error("Invalid ICE servers received from host, falling back to default: ", error);
+        }
+    }
+
+    return new RTCPeerConnection({ iceServers: DEFAULT_ICE_SERVERS });
+}
+
 class WebRTCConnection {
-    constructor() {
+    constructor(iceServers) {
         if (!window.RTCPeerConnection) {
             alert('Whoops, looks like your browser does not support WebRTC! Please try using a different browser (Google Chrome recommended), or a different protocol, such as WebSockets.');
             throw new Error("WebRTC is not supported by this browser.");
         }
 
-        this.pc = new RTCPeerConnection();
+        this.iceServers = iceServers;
+        this.pc = createPeerConnection(iceServers);
         this.screenSize = null;
         this.eventsReady = false;
         this.channel = null;
@@ -30,6 +49,22 @@ class WebRTCConnection {
 
             const answer = await this.pc.createAnswer();
             await this.pc.setLocalDescription(answer);
+
+            // Wait for connection to finish gathering ICE candidates (10 seconds max)
+            await new Promise(resolve => {
+                if (this.pc.iceGatheringState === "complete") {
+                    resolve();
+                } else {
+                    const timeout = setTimeout(resolve, 10000);
+
+                    this.pc.onicegatheringstatechange = () => {
+                        if (this.pc.iceGatheringState === "complete") {
+                            clearTimeout(timeout);
+                            resolve();
+                        }
+                    };
+                }
+            });
 
             this.pc.ondatachannel = (event) => {
                 event.channel.onmessage = (e) => {
@@ -94,7 +129,7 @@ class WebRTCConnection {
             throw new Error("WebRTC is not supported by this browser.");
         }
 
-        this.pc = new RTCPeerConnection();
+        this.pc = createPeerConnection(this.iceServers);
         return true;
     }
 }

@@ -127,11 +127,11 @@ ipcMain.handle('session:stop', async (event) => {
 });
 
 // Sends session responses from the host to the viewer (accept or decline)
-ipcMain.handle('session:response', async (event, { sessionId, offer, type, declined }) => {
+ipcMain.handle('session:response', async (event, { sessionId, offer, type, iceServers, declined }) => {
     try {
         if (sessionId) {
             if (offer && !declined) { // accept
-                io.to(sessionId).emit('session:offer', { offer, type });
+                io.to(sessionId).emit('session:offer', { offer, type, iceServers });
             } else { // decline
                 io.to(sessionId).emit('session:offer', { declined: true });
             }

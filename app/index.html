@@ -318,6 +318,33 @@
           </div>
         </div>
       </div>
+
+      <div id="ice_settings" class="mt-6">
+        <button id="advanced_toggle"
+          class="cursor-pointer w-full flex items-center justify-center space-x-1 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors">
+          <span>Advanced Options</span>
+          <svg class="w-3 h-3 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
+        </button>
+
+        <div id="advanced_settings"
+          class="hidden settings-div bg-gray-50 border border-gray-200 rounded-lg p-4 mt-3 space-y-3 transition-colors duration-500 ease-in-out">
+          <div class="flex flex-col space-y-2">
+            <label for="ice_servers" class="text-sm font-medium text-gray-700">Connection Servers</label>
+
+            <textarea id="ice_servers" rows="6" spellcheck="false"
+              class="resize-none bg-white border border-gray-300 text-gray-900 text-xs font-mono py-2 px-3 rounded focus:outline-none focus:border-gray-400 transition-colors"
+              placeholder='[
+  { "urls": "stun:stun.l.google.com:19302" },
+  { "urls": "turn:turn.example.com:3478", "username": "user", "credential": "pass" }
+]'></textarea>
+
+            <p class="text-xs text-gray-500">JSON array of STUN/TURN servers. Leave empty for public STUN only.</p>
+            <p id="ice_servers_error" class="hidden text-xs text-red-600"></p>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="text-center mt-auto py-3">

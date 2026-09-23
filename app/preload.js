@@ -6,6 +6,7 @@ const WebSocketConnection = require('./libs/websocket.js');
 let connection; // the current connection instance (WebRTC or WebSocket)
 let display = null; // the current display media stream
 let screenSize = null; // the dimensions of `display` param
+let iceServers = null; // the configured STUN/TURN servers for WebRTC (optional)
 
 window.addEventListener('DOMContentLoaded', () => {
     const input = document.querySelector('#code');
@@ -32,9 +33,42 @@ window.addEventListener('DOMContentLoaded', () => {
     const username = loginSettings.querySelector('#username');
     const password = loginSettings.querySelector('#password');
 
+    const iceSettings = document.querySelector('#ice_settings');
+    const iceServersInput = document.querySelector('#ice_servers');
+    const iceServersError = document.querySelector('#ice_servers_error');
+    const advancedToggle = document.querySelector('#advanced_toggle');
+    const advancedSettings = document.querySelector('#advanced_settings');
+
     function startConnection() {
-        connection = method.value === 'websocket' ? new WebSocketConnection() : new WebRTCConnection();
+        connection = method.value === 'websocket' ? new WebSocketConnection() : new WebRTCConnection(iceServers);
     };
+
+    // Parses the ICE servers field from the text
+    function parseIceServers(text) {
+        const isValidServer = s => s && typeof s === 'object' && (typeof s.urls === 'string' || (Array.isArray(s.urls) && s.urls.length > 0));
+        if (!text.trim()) return { servers: null };
+
+        let servers;
+        try {
+            servers = JSON.parse(text);
+        } catch (error) {
+            return { error: `Your JSON array is invalid: ${error.message}` };
+        }
+
+        if (!Array.isArray(servers)) return { error: 'Your data must be formatted as a JSON array of servers.' };
+        if (servers.length === 0) return { error: 'You must have at least one server.' };
+
+        const badIndex = servers.findIndex(s => !isValidServer(s));
+        if (badIndex !== -1) return { error: `Server #${badIndex + 1} must contain a "urls" field.` };
+
+        try {
+            new RTCPeerConnection({ iceServers: servers }).close();
+        } catch (error) {
+            return { error: error.message };
+        }
+
+        return { servers };
+    }
 
     function endConnection() {
         connection = null;
@@ -68,6 +102,10 @@ window.addEventListener('DOMContentLoaded', () => {
             login.checked = (settings.login ?? false);
             username.value = (settings.username ?? '');
             // we're using hashed password w/ bcrypt so no updating password!
+
+            iceServers = settings.iceServers ?? null;
+            iceServersInput.value = iceServers ? JSON.stringify(iceServers, null, 2) : '';
+            iceSettings.classList.toggle('hidden', method.value !== 'webrtc');
 
             toggleChange(audioToggle, audio.checked);
             toggleChange(controlToggle, control.checked);
@@ -188,7 +226,8 @@ window.addEventListener('DOMContentLoaded', () => {
                     const item = document.querySelector('.connection_items .pending_item').cloneNode(true);
                     item.querySelector('.item_name').textContent = (meta.ip ?? sessionId);
 
-                    item.querySelector('.item_accept').addEventListener('click', async () => {
+                    item.querySelector('.item_accept').addEventListener('click', async (e) => {
+                        e.currentTarget.disabled = true;
                         return approve(sessionId);
                     });
 
@@ -412,6 +451,33 @@ window.addEventListener('DOMContentLoaded', () => {
         ipcRenderer.invoke('settings:update', {
             method: method.value
         });
+
+        iceSettings.classList.toggle('hidden', method.value !== 'webrtc');
+    });
+
+    // Save ICE servers when changed and apply to new connections
+    iceServersInput.addEventListener('change', () => {
+        const { servers, error } = parseIceServers(iceServersInput.value);
+
+        iceServersError.textContent = error ?? '';
+        iceServersError.classList.toggle('hidden', !error);
+        if (error) return;
+
+        iceServers = servers;
+        if (servers) {
+            iceServersInput.value = JSON.stringify(servers, null, 2);
+            if (connection instanceof WebRTCConnection) connection.setIceServers(servers);
+        }
+
+        ipcRenderer.invoke('settings:update', {
+            iceServers: servers
+        });
+    });
+
+    // Advanced options show/hide event
+    advancedToggle.addEventListener('click', () => {
+        const hidden = advancedSettings.classList.toggle('hidden');
+        advancedToggle.querySelector('svg').classList.toggle('rotate-180', !hidden);
     });
 
     // Unattended access toggle switch event
