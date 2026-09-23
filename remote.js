@@ -1,5 +1,5 @@
 const { mouse, keyboard, Key, Point } = require("@nut-tree-fork/nut-js");
-const keymaps = require('./keymaps');
+const keymaps = require('./keymaps').nutjs;
 
 mouse.config.autoDelayMs = 0;
 keyboard.config.autoDelayMs = 0;
