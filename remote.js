@@ -4,6 +4,8 @@ const keymaps = require('./keymaps').nutjs;
 mouse.config.autoDelayMs = 0;
 keyboard.config.autoDelayMs = 0;
 
+const heldKeys = new Map(); // keys currently pressed down, so keyup/blur releases them and browser repeats are skipped
+
 // Handles pointer events, repeated by the host from viewer input
 async function pointerEvent(data) {
     try {
@@ -23,18 +25,23 @@ async function keyboardEvent(data) {
     try {
         const { method, event } = data;
 
-        if (method === 'keydown') {
-            if (event.key.length === 1 && !event.relyingKey) { // type
-                await keyboard.type(event.key);
-            } else { // key press or release
-                const key = keymaps[event.code];
-                if (key) await keyboard.pressKey(Key[key]);
+        if (method === 'keydown' && !heldKeys.has(event.code)) { // skips repeat keydowns from the browser while a key is held (host repeats it)
+            const key = Key[keymaps[event.code]];
+
+            if (key === undefined) { // no nut-js key for it, type the character instead
+                if (event.key.length === 1) await keyboard.type(event.key);
+                return;
             }
-        } else if (method === 'keyup') {
-            if (event.key.length !== 1 || (event.key.length === 1 && event.relyingKey)) { // key release only
-                const key = keymaps[event.code];
-                if (key) await keyboard.releaseKey(Key[key]);
-            }
+
+            heldKeys.set(event.code, key);
+            await keyboard.pressKey(key);
+        } else if (method === 'keyup' && heldKeys.has(event.code)) {
+            const key = heldKeys.get(event.code);
+
+            heldKeys.delete(event.code);
+            await keyboard.releaseKey(key);
+        } else if (method === 'releaseall') {
+            await releaseAll();
         }
     } catch { };
 };
@@ -60,6 +67,17 @@ async function scrollEvent(data) {
             await mouse.scrollLeft(Math.abs(deltaX));
         }
     } catch { };
+}
+
+// Releases any keys still held down (viewer lost focus, or the session ended mid-press)
+async function releaseAll() {
+    for (const key of heldKeys.values()) {
+        try {
+            await keyboard.releaseKey(key);
+        } catch { };
+    }
+
+    heldKeys.clear();
 }
 
 module.exports = { pointerEvent, keyboardEvent, scrollEvent };

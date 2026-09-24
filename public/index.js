@@ -166,15 +166,16 @@ const keyEvent = (event) => {
     event.preventDefault();
 
     try {
-        const keyInfo = {
-            code: event.code,
-            key: event.key,
-            keyCode: event.keyCode,
-            which: event.which,
-            relyingKey: event.altKey || event.ctrlKey || event.metaKey || event.shiftKey
-        };
+        connection.sendEvent({ name: 'keyboard', method: event.type, event: { code: event.code, key: event.key } });
+    } catch { };
+};
 
-        connection.sendEvent({ name: 'keyboard', method: event.type, event: keyInfo });
+// Tells the host to release every held key (the page lost focus so keyups for keys still down never arrive)
+const releaseHeldKeys = () => {
+    if (!connection || !connection.eventsReady || !connection.screenSize) return;
+
+    try {
+        connection.sendEvent({ name: 'keyboard', method: 'releaseall' });
     } catch { };
 };
 
@@ -215,6 +216,7 @@ canvas.addEventListener('wheel', scrollEvent); // pointer was scrolled
 // -- Keyboard Input -- //
 window.addEventListener('keydown', keyEvent); // key was pressed down
 window.addEventListener('keyup', keyEvent); // key was lifted up
+window.addEventListener('blur', releaseHeldKeys); // page lost focus while keys could've been held
 
 input.focus();
 window.startConnection = startConnection;
