@@ -6,7 +6,7 @@ const WebSocketConnection = require('./libs/websocket.js');
 let connection; // the current connection instance (WebRTC or WebSocket)
 let display = null; // the current display media stream
 let screenSize = null; // the dimensions of `display` param
-let iceServers = null; // the configured STUN/TURN servers for WebRTC (optional)
+let turnMode = 'custom'; // which TURN servers config is shown (custom or cloudflare)
 
 window.addEventListener('DOMContentLoaded', () => {
     const input = document.querySelector('#code');
@@ -34,13 +34,21 @@ window.addEventListener('DOMContentLoaded', () => {
     const password = loginSettings.querySelector('#password');
 
     const iceSettings = document.querySelector('#ice_settings');
+    const stunInput = document.querySelector('#stun_server');
+    const stunError = document.querySelector('#stun_server_error');
     const iceServersInput = document.querySelector('#ice_servers');
     const iceServersError = document.querySelector('#ice_servers_error');
+    const turnToggle = document.querySelector('#turn_toggle');
+    const turnCustom = document.querySelector('#turn_custom');
+    const turnCloudflare = document.querySelector('#turn_cloudflare');
+    const cloudflareKey = document.querySelector('#cloudflare_key');
+    const cloudflareToken = document.querySelector('#cloudflare_token');
+    const cloudflareError = document.querySelector('#cloudflare_error');
     const advancedToggle = document.querySelector('#advanced_toggle');
     const advancedSettings = document.querySelector('#advanced_settings');
 
     function startConnection() {
-        connection = method.value === 'websocket' ? new WebSocketConnection() : new WebRTCConnection(iceServers);
+        connection = method.value === 'websocket' ? new WebSocketConnection() : new WebRTCConnection();
     };
 
     // Parses the ICE servers field from the text
@@ -68,6 +76,19 @@ window.addEventListener('DOMContentLoaded', () => {
         }
 
         return { servers };
+    }
+
+    // Shows an error message under a field (or hides it if empty)
+    function showError(element, error) {
+        element.textContent = error ?? '';
+        element.classList.toggle('hidden', !error);
+    }
+
+    // Switches which TURN fields are visible (UI change)
+    function showTurnMode(mode) {
+        turnCustom.classList.toggle('hidden', mode !== 'custom');
+        turnCloudflare.classList.toggle('hidden', mode !== 'cloudflare');
+        turnToggle.textContent = (mode === 'custom' ? 'Use Cloudflare' : 'Use Custom');
     }
 
     function endConnection() {
@@ -103,8 +124,13 @@ window.addEventListener('DOMContentLoaded', () => {
             username.value = (settings.username ?? '');
             // we're using hashed password w/ bcrypt so no updating password!
 
-            iceServers = settings.iceServers ?? null;
-            iceServersInput.value = iceServers ? JSON.stringify(iceServers, null, 2) : '';
+            stunInput.value = (settings.stunServer ?? '');
+            iceServersInput.value = settings.iceServers ? JSON.stringify(settings.iceServers, null, 2) : '';
+            cloudflareKey.value = (settings.cloudflare?.keyId ?? '');
+            cloudflareToken.value = (settings.cloudflare?.apiToken ?? '');
+
+            turnMode = (settings.turnMode ?? 'custom');
+            showTurnMode(turnMode);
             iceSettings.classList.toggle('hidden', method.value !== 'webrtc');
 
             toggleChange(audioToggle, audio.checked);
@@ -161,7 +187,8 @@ window.addEventListener('DOMContentLoaded', () => {
             await createDisplay();
         }
 
-        let handshake = await connection.acceptOffer(sessionId, { display, screenSize }, audio.checked, (e) => {
+        const iceServers = (connection instanceof WebRTCConnection) ? await ipcRenderer.invoke('ice:resolve', sessionId) : null; // resolved per viewer (like Cloudflare credentials)
+        let handshake = await connection.acceptOffer(sessionId, { display, screenSize, iceServers }, audio.checked, (e) => {
             // on message
             try {
                 if (!e.data) return;
@@ -455,22 +482,63 @@ window.addEventListener('DOMContentLoaded', () => {
         iceSettings.classList.toggle('hidden', method.value !== 'webrtc');
     });
 
-    // Save ICE servers when changed and apply to new connections
+    // Save STUN server when changed and apply to new connections
+    stunInput.addEventListener('change', async () => {
+        const value = stunInput.value.trim();
+        const { error } = value ? parseIceServers(JSON.stringify([{ urls: value }])) : {};
+
+        showError(stunError, error);
+        if (error) return;
+
+        const settings = await ipcRenderer.invoke('settings:update', {
+            stunServer: value
+        });
+
+        stunInput.value = settings.stunServer; // shows the default if cleared
+    });
+
+    // Save TURN servers when changed and apply to new connections
     iceServersInput.addEventListener('change', () => {
         const { servers, error } = parseIceServers(iceServersInput.value);
 
-        iceServersError.textContent = error ?? '';
-        iceServersError.classList.toggle('hidden', !error);
+        showError(iceServersError, error);
         if (error) return;
 
-        iceServers = servers;
         if (servers) {
             iceServersInput.value = JSON.stringify(servers, null, 2);
-            if (connection instanceof WebRTCConnection) connection.setIceServers(servers);
         }
 
         ipcRenderer.invoke('settings:update', {
             iceServers: servers
+        });
+    });
+
+    // Save Cloudflare keys when changed (validate keys before saving)
+    async function saveCloudflare() {
+        const keys = { keyId: cloudflareKey.value.trim(), apiToken: cloudflareToken.value.trim() };
+
+        if (keys.keyId && keys.apiToken) {
+            const { valid, status } = await ipcRenderer.invoke('ice:test', keys);
+
+            if (!valid) return showError(cloudflareError, [401, 403, 404].includes(status) ? `Your Cloudflare credentials are invalid.` : 'An unknown error occurred while validating your credentials.');
+        }
+
+        showError(cloudflareError, null);
+        ipcRenderer.invoke('settings:update', {
+            cloudflare: keys
+        });
+    }
+
+    cloudflareKey.addEventListener('change', saveCloudflare);
+    cloudflareToken.addEventListener('change', saveCloudflare);
+
+    // Switch between custom and Cloudflare TURN servers
+    turnToggle.addEventListener('click', () => {
+        turnMode = (turnMode === 'custom' ? 'cloudflare' : 'custom');
+        showTurnMode(turnMode);
+
+        ipcRenderer.invoke('settings:update', {
+            turnMode
         });
     });
 

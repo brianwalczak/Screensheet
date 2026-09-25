@@ -1,11 +1,6 @@
 const video_container = document.querySelector('#video-container');
 const video = document.querySelector('#video-container video');
 
-const DEFAULT_ICE_SERVERS = [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun.cloudflare.com:3478" }
-];
-
 // Uses the STUN/TURN servers the host sent with its offer
 function createPeerConnection(iceServers) {
     if (Array.isArray(iceServers) && iceServers.length > 0) {
@@ -16,7 +11,7 @@ function createPeerConnection(iceServers) {
         }
     }
 
-    return new RTCPeerConnection({ iceServers: DEFAULT_ICE_SERVERS });
+    return new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.cloudflare.com:3478" }] });
 }
 
 class WebRTCConnection {
@@ -26,7 +21,6 @@ class WebRTCConnection {
             throw new Error("WebRTC is not supported by this browser.");
         }
 
-        this.iceServers = iceServers;
         this.pc = createPeerConnection(iceServers);
         this.screenSize = null;
         this.eventsReady = false;
@@ -124,12 +118,6 @@ class WebRTCConnection {
             this.pc.close();
         }
 
-        if (!window.RTCPeerConnection) {
-            alert('Whoops, looks like your browser does not support WebRTC! Please try using a different browser (Google Chrome recommended), or a different protocol, such as WebSockets.');
-            throw new Error("WebRTC is not supported by this browser.");
-        }
-
-        this.pc = createPeerConnection(this.iceServers);
         return true;
     }
 }

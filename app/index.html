@@ -331,17 +331,42 @@
         <div id="advanced_settings"
           class="hidden settings-div bg-gray-50 border border-gray-200 rounded-lg p-4 mt-3 space-y-3 transition-colors duration-500 ease-in-out">
           <div class="flex flex-col space-y-2">
-            <label for="ice_servers" class="text-sm font-medium text-gray-700">Connection Servers</label>
+            <label for="stun_server" class="text-sm font-medium text-gray-700">STUN Server</label>
 
-            <textarea id="ice_servers" rows="6" spellcheck="false"
-              class="resize-none bg-white border border-gray-300 text-gray-900 text-xs font-mono py-2 px-3 rounded focus:outline-none focus:border-gray-400 transition-colors"
-              placeholder='[
-  { "urls": "stun:stun.l.google.com:19302" },
+            <input id="stun_server" type="text" spellcheck="false"
+              class="bg-white border border-gray-300 text-gray-900 text-xs font-mono py-2 px-3 rounded focus:outline-none focus:border-gray-400 transition-colors">
+
+            <p class="text-xs text-gray-500">Cloudflare's public STUN is used by default.</p>
+            <p id="stun_server_error" class="hidden text-xs text-red-600"></p>
+          </div>
+
+          <div class="flex flex-col space-y-2">
+            <div class="flex items-center justify-between">
+              <label class="text-sm font-medium text-gray-700">TURN Server</label>
+              <button id="turn_toggle" class="cursor-pointer text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors">Use Cloudflare</button>
+            </div>
+
+            <div id="turn_custom" class="flex flex-col space-y-2">
+              <textarea id="ice_servers" rows="5" spellcheck="false"
+                class="resize-none bg-white border border-gray-300 text-gray-900 text-xs font-mono py-2 px-3 rounded focus:outline-none focus:border-gray-400 transition-colors"
+                placeholder='[
   { "urls": "turn:turn.example.com:3478", "username": "user", "credential": "pass" }
 ]'></textarea>
 
-            <p class="text-xs text-gray-500">JSON array of STUN/TURN servers. Leave empty for public STUN only.</p>
-            <p id="ice_servers_error" class="hidden text-xs text-red-600"></p>
+              <p class="text-xs text-gray-500">TURN server relaying is disabled by default.</p>
+              <p id="ice_servers_error" class="hidden text-xs text-red-600"></p>
+            </div>
+
+            <div id="turn_cloudflare" class="hidden flex flex-col space-y-2">
+              <input id="cloudflare_key" type="text" spellcheck="false" placeholder="Turn Token ID"
+                class="bg-white border border-gray-300 text-gray-900 text-xs font-mono py-2 px-3 rounded focus:outline-none focus:border-gray-400 transition-colors">
+
+              <input id="cloudflare_token" type="password" spellcheck="false" placeholder="API Token"
+                class="bg-white border border-gray-300 text-gray-900 text-xs font-mono py-2 px-3 rounded focus:outline-none focus:border-gray-400 transition-colors">
+
+              <p class="text-xs text-gray-500">Find your Cloudflare credentials <a href="https://developers.cloudflare.com/realtime/turn/generate-credentials/" target="_blank" class="underline hover:text-gray-700 transition-colors">here</a>.</p>
+              <p id="cloudflare_error" class="hidden text-xs text-red-600"></p>
+            </div>
           </div>
         </div>
       </div>

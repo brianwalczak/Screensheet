@@ -1,6 +1,7 @@
 const { screen } = require("@nut-tree-fork/nut-js");
-const { app: electron, BrowserWindow, ipcMain, desktopCapturer, systemPreferences } = require('electron');
+const { app: electron, BrowserWindow, ipcMain, desktopCapturer, systemPreferences, shell } = require('electron');
 const { pointerEvent, keyboardEvent, scrollEvent } = require('./remote');
+const ice = require('./ice');
 const bcrypt = require('bcryptjs');
 const express = require('express');
 const path = require('path');
@@ -46,6 +47,11 @@ function createWindow() {
         },
     });
 
+    window.webContents.setWindowOpenHandler(({ url }) => {
+        if (url.startsWith('https://')) shell.openExternal(url);
+        return { action: 'deny' };
+    });
+
     window.setMenuBarVisibility(false);
     window.loadFile(path.join(__dirname, 'app', 'index.html'));
 
@@ -87,6 +93,16 @@ electron.on('window-all-closed', () => {
     }
 });
 
+// Revoke any TURN credentials left before quitting (5 seconds max)
+electron.on('before-quit', async (event) => {
+    if (!ice.hasCredentials()) return;
+    event.preventDefault();
+
+    await Promise.race([ice.revokeAll(), new Promise(resolve => setTimeout(resolve, 5000))]);
+
+    electron.exit();
+});
+
 // Returns the available display sources and their dimensions
 ipcMain.handle('display', async (event) => {
     try {
@@ -122,6 +138,7 @@ ipcMain.handle('session:start', async (event) => {
 ipcMain.handle('session:stop', async (event) => {
     activeCode = null;
     ws.clear();
+    ice.revokeAll();
 
     return true;
 });
@@ -148,11 +165,33 @@ ipcMain.handle('session:disconnect', async (event, sessionId) => {
             ws.delete(sessionId);
         }
 
+        ice.revoke(sessionId);
+
         try {
             io.to(sessionId).emit('session:disconnect');
         } catch (error) {
             console.error("Error sending disconnect to socket ", sessionId, ": ", error);
         }
+    }
+});
+
+// -- ICE Servers -- //
+
+// Resolves the ICE servers for a viewer (from settings)
+ipcMain.handle('ice:resolve', async (event, sessionId) => {
+    const iceServers = await ice.resolve(settings, sessionId);
+    if (!io.sockets.sockets.has(sessionId)) ice.revoke(sessionId); // viewer left while resolving
+
+    return iceServers;
+});
+
+// Tests Cloudflare TURN keys before saving them
+ipcMain.handle('ice:test', async (event, keys) => {
+    try {
+        await ice.test(keys);
+        return { valid: true };
+    } catch (error) {
+        return { valid: false, status: error.status };
     }
 });
 
@@ -171,6 +210,7 @@ ipcMain.handle('settings:update', async (event, modified) => {
         }
 
         const updated = { ...settings, ...modified };
+        updated.stunServer = updated.stunServer ? updated.stunServer : ice.DEFAULT_STUN_SERVER; // reset to default if cleared
         fs.writeFileSync(settingsPath, JSON.stringify(updated, null, 4));
 
         if (modified.port && modified.port !== (settings?.port ?? 3000) && server) {
@@ -199,6 +239,7 @@ io.on('connection', (socket) => {
             ws.delete(sessionId);
         }
 
+        ice.revoke(sessionId);
         window.webContents.send('session:disconnect', sessionId);
     };
 
@@ -264,7 +305,7 @@ io.on('connection', (socket) => {
 
 (async () => {
     try {
-        const defaults = { port: 3000, audio: true, control: true, method: 'webrtc' };
+        const defaults = { port: 3000, audio: true, control: true, method: 'webrtc', stunServer: ice.DEFAULT_STUN_SERVER };
         let data;
 
         if (fs.existsSync(settingsPath)) {
