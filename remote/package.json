@@ -1,0 +1,16 @@
+{
+  "name": "@screensheet/remote",
+  "version": "1.0.0",
+  "description": "A utility to handle remote input from viewers using nut-js or RemoteDesktop for Wayland.",
+  "license": "Apache-2.0",
+  "author": "Brian Walczak",
+  "type": "commonjs",
+  "main": "index.js",
+  "dependencies": {
+    "@nut-tree-fork/nut-js": "^4.2.6",
+    "@screensheet/keymaps": "file:../keymaps"
+  },
+  "optionalDependencies": {
+    "dbus-next": "^0.10.2"
+  }
+}

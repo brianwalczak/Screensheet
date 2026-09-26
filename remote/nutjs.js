@@ -1,5 +1,5 @@
-const { mouse, keyboard, Key, Point } = require("@nut-tree-fork/nut-js");
-const keymaps = require('./keymaps').nutjs;
+const { mouse, keyboard, screen, Key, Point } = require("@nut-tree-fork/nut-js");
+const keymaps = require('@screensheet/keymaps').nutjs;
 
 mouse.config.autoDelayMs = 0;
 keyboard.config.autoDelayMs = 0;
@@ -46,13 +46,14 @@ async function keyboardEvent(data) {
     } catch { };
 };
 
+// Handles scroll events, repeated by the host from viewer input
 async function scrollEvent(data) {
     try {
         let { deltaX, deltaY, deltaMode } = data;
 
         if (deltaMode === 1) { // lines (average)
-            deltaX = deltaX * 15;
-            deltaY = deltaY * 15;
+            deltaX = deltaX * 5;
+            deltaY = deltaY * 5;
         }
 
         if (deltaY > 0) {
@@ -80,4 +81,9 @@ async function releaseAll() {
     heldKeys.clear();
 }
 
-module.exports = { pointerEvent, keyboardEvent, scrollEvent };
+// Returns the screen dimensions
+async function getScreenSize() {
+    return { width: await screen.width(), height: await screen.height() };
+}
+
+module.exports = { pointerEvent, keyboardEvent, scrollEvent, getScreenSize, dispose: releaseAll };

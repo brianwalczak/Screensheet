@@ -1,5 +1,5 @@
 const { contextBridge, ipcRenderer } = require('electron');
-const { pointerEvent, keyboardEvent, scrollEvent } = require('../remote.js');
+const { init: initRemoteInput, dispose: disposeRemoteInput, pointerEvent, keyboardEvent, scrollEvent } = require('@screensheet/remote');
 const WebRTCConnection = require('./libs/webrtc.js');
 const WebSocketConnection = require('./libs/websocket.js');
 
@@ -180,6 +180,28 @@ window.addEventListener('DOMContentLoaded', () => {
         statusDot.classList.add(colorClass);
     }
 
+    // Passes viewer input to the remote input backend based on event
+    function handleInput(message) {
+        if (!message?.name || !message.method || !control.checked) return; // only allow control if enabled
+
+        switch (message.name) {
+            case 'pointer':
+                pointerEvent(message);
+                break;
+            case 'keyboard':
+                keyboardEvent(message);
+                break;
+            case 'scroll':
+                scrollEvent(message);
+                break;
+        }
+    }
+
+    // Handles viewer input forwarded by the main process (aka WebSockets)
+    function onInput(event, message) {
+        handleInput(message);
+    }
+
     // Approves a viewer's connection request and establishes a peer connection
     async function approve(sessionId) {
         if (!connection) return;
@@ -192,21 +214,7 @@ window.addEventListener('DOMContentLoaded', () => {
             // on message
             try {
                 if (!e.data) return;
-                const message = JSON.parse(e.data);
-
-                if (message.name && message.method && control.checked) { // only allow control if enabled
-                    switch (message.name) {
-                        case 'pointer':
-                            pointerEvent(message);
-                            break;
-                        case 'keyboard':
-                            keyboardEvent(message);
-                            break;
-                        case 'scroll':
-                            scrollEvent(message);
-                            break;
-                    }
-                }
+                handleInput(JSON.parse(e.data));
             } catch { };
         }, async (state) => {
             // on state change
@@ -236,6 +244,7 @@ window.addEventListener('DOMContentLoaded', () => {
     async function disconnect(sessionId) {
         if (!connection) return;
         await connection.disconnect(sessionId);
+        await keyboardEvent({ method: 'releaseall' }); // release any keys the viewer was still holding
 
         await ipcRenderer.invoke('session:disconnect', sessionId);
         await statusChange("disconnected"); // must call statusChange to update status since it's an active connection, don't try to disconnect again
@@ -414,6 +423,7 @@ window.addEventListener('DOMContentLoaded', () => {
             start.innerHTML = 'Starting session...';
 
             await createDisplay();
+            await initRemoteInput(screenSize);
             start.classList.add('hidden');
             stop.classList.remove('hidden');
 
@@ -427,12 +437,17 @@ window.addEventListener('DOMContentLoaded', () => {
             ipcRenderer.on('session:disconnect', onDisconnect);
             ipcRenderer.on('session:request', onRequest);
             ipcRenderer.on('session:answer', onAnswer);
+            ipcRenderer.on('remote:input', onInput);
             return startConnection();
         },
         stop: async () => {
             if (!connection) return;
             await connection.disconnectAll();
+            await disposeRemoteInput();
             await ipcRenderer.invoke('session:stop');
+
+            display?.getTracks().forEach(track => track.stop()); // end the screen capture (otherwise it keeps running until the app quits)
+            display = null;
 
             stop.classList.add('hidden');
             start.classList.remove('hidden');
@@ -446,6 +461,7 @@ window.addEventListener('DOMContentLoaded', () => {
             ipcRenderer.removeListener('session:disconnect', onDisconnect);
             ipcRenderer.removeListener('session:request', onRequest);
             ipcRenderer.removeListener('session:answer', onAnswer);
+            ipcRenderer.removeListener('remote:input', onInput);
             return endConnection();
         },
         copy: async () => {

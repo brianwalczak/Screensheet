@@ -1,6 +1,5 @@
-const { screen } = require("@nut-tree-fork/nut-js");
 const { app: electron, BrowserWindow, ipcMain, desktopCapturer, systemPreferences, shell } = require('electron');
-const { pointerEvent, keyboardEvent, scrollEvent } = require('./remote');
+const { getScreenSize } = require('@screensheet/remote');
 const ice = require('./ice');
 const bcrypt = require('bcryptjs');
 const express = require('express');
@@ -107,8 +106,7 @@ electron.on('before-quit', async (event) => {
 ipcMain.handle('display', async (event) => {
     try {
         const display = await desktopCapturer.getSources({ types: ['screen'] });
-        const width = await screen.width();
-        const height = await screen.height();
+        const { width, height } = await getScreenSize();
 
         return { display, width, height };
     } catch (error) {
@@ -280,23 +278,13 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('nutjs:pointer', (data) => {
-        if (!ws.has(sessionId) || !settings.control || !data) return;
+    for (const name of ['pointer', 'keyboard', 'scroll']) {
+        socket.on(`input:${name}`, (data) => {
+            if (!ws.has(sessionId) || !settings.control || !data) return;
 
-        pointerEvent(data);
-    });
-
-    socket.on('nutjs:keyboard', (data) => {
-        if (!ws.has(sessionId) || !settings.control || !data) return;
-
-        keyboardEvent(data);
-    });
-
-    socket.on('nutjs:scroll', (data) => {
-        if (!ws.has(sessionId) || !settings.control || !data) return;
-
-        scrollEvent(data);
-    });
+            window.webContents.send('remote:input', { ...data, name });
+        });
+    }
 
     // Remove peer connection when viewer disconnects
     socket.on('session:disconnect', handleDisconnect);

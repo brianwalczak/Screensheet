@@ -149,8 +149,8 @@ module.exports = {
 
     // International keys
     "IntlBackslash": 86,         // KEY_102ND
-    "IntlRo": null,
-    "IntlYen": null,
+    "IntlRo": 89,                // KEY_RO
+    "IntlYen": 124,              // KEY_YEN
 
     // Browser-specific keys
     "BrowserBack": null,

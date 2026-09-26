@@ -63,7 +63,7 @@ class WebSocketConnection {
         if (!data || !this.eventsReady) return;
 
         if (data.name && data.method) {
-            this.socket.emit(`nutjs:${data.name}`, data);
+            this.socket.emit(`input:${data.name}`, data);
         }
     }
 
