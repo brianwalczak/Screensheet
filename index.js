@@ -1,5 +1,4 @@
-const { app: electron, BrowserWindow, ipcMain, desktopCapturer, systemPreferences, shell } = require('electron');
-const { getScreenSize } = require('@screensheet/remote');
+const { app: electron, BrowserWindow, ipcMain, desktopCapturer, systemPreferences, shell, screen } = require('electron');
 const ice = require('./ice');
 const bcrypt = require('bcryptjs');
 const express = require('express');
@@ -106,7 +105,11 @@ electron.on('before-quit', async (event) => {
 ipcMain.handle('display', async (event) => {
     try {
         const display = await desktopCapturer.getSources({ types: ['screen'] });
-        const { width, height } = await getScreenSize();
+
+        // Used to capture at the display's full resolution
+        const { size, scaleFactor } = (screen.getAllDisplays().find(d => String(d.id) === display[0]?.display_id) ?? screen.getPrimaryDisplay());
+        const width = Math.round(size.width * scaleFactor);
+        const height = Math.round(size.height * scaleFactor);
 
         return { display, width, height };
     } catch (error) {

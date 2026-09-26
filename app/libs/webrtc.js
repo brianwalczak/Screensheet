@@ -78,7 +78,7 @@ class WebRTCConnection {
     }
 
     // Accepts an offer from a viewer and creates a new peer connection
-    async acceptOffer(peerId, { display, screenSize, iceServers }, enableAudio, onMessage, onStateChange) {
+    async acceptOffer(peerId, { display, iceServers }, enableAudio, onMessage, onStateChange) {
         if (!peerId || !display) return null;
 
         let meta = this.peers.pending.get(peerId);
@@ -94,11 +94,8 @@ class WebRTCConnection {
 
         const channel = pc.createDataChannel('input');
         channel.onopen = () => {
-            if (!screenSize || !screenSize.width || !screenSize.height) return;
-
             try {
-                const string = JSON.stringify(screenSize);
-                channel.send(string);
+                channel.send(JSON.stringify({ type: 'ready' })); // tells the viewer it can start sending input
             } catch { }
         };
 

@@ -53,8 +53,8 @@ class WebSocketConnection {
     }
 
     // Accepts an offer from a viewer and creates a new websocket connection
-    async acceptOffer(socketId, { display, screenSize }, enableAudio, onMessage, onStateChange) {
-        if (!socketId || !screenSize) return null;
+    async acceptOffer(socketId, { display }, enableAudio, onMessage, onStateChange) {
+        if (!socketId) return null;
 
         let meta = this.peers.pending.get(socketId);
         if (!meta) return null;
@@ -81,8 +81,6 @@ class WebSocketConnection {
             sessionId: socketId,
             type: "websocket",
             offer: {
-                width: screenSize.width,
-                height: screenSize.height,
                 codec: this.frames.codec
             }
         };

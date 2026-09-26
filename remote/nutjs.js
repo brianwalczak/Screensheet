@@ -5,12 +5,18 @@ mouse.config.autoDelayMs = 0;
 keyboard.config.autoDelayMs = 0;
 
 const heldKeys = new Map(); // keys currently pressed down, so keyup/blur releases them and browser repeats are skipped
+let size = null; // the screen dimensions
+
+// Reads the screen size when a hosting session starts
+async function init() {
+    size = { width: await screen.width(), height: await screen.height() };
+}
 
 // Handles pointer events, repeated by the host from viewer input
 async function pointerEvent(data) {
     try {
         const { x, y, method } = data;
-        await mouse.move(new Point(x, y));
+        await mouse.move(new Point(Math.round(x * (size.width - 1)), Math.round(y * (size.height - 1))));
 
         if (data.button !== undefined && (method === 'pointerdown' || method === 'pointerup')) {
             const type = (method === 'pointerdown' ? 'pressButton' : 'releaseButton');
@@ -81,9 +87,4 @@ async function releaseAll() {
     heldKeys.clear();
 }
 
-// Returns the screen dimensions
-async function getScreenSize() {
-    return { width: await screen.width(), height: await screen.height() };
-}
-
-module.exports = { pointerEvent, keyboardEvent, scrollEvent, getScreenSize, dispose: releaseAll };
+module.exports = { pointerEvent, keyboardEvent, scrollEvent, init, dispose: releaseAll };

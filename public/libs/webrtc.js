@@ -22,7 +22,6 @@ class WebRTCConnection {
         }
 
         this.pc = createPeerConnection(iceServers);
-        this.screenSize = null;
         this.eventsReady = false;
         this.channel = null;
     }
@@ -67,8 +66,7 @@ class WebRTCConnection {
                     try {
                         const message = JSON.parse(e.data);
 
-                        if (message.width && message.height) {
-                            this.screenSize = { width: message.width, height: message.height };
+                        if (message.type === 'ready') {
                             this.channel = event.channel;
                             this.eventsReady = true;
                         }
@@ -110,7 +108,6 @@ class WebRTCConnection {
             this.channel.close();
         }
 
-        this.screenSize = null;
         this.channel = null;
         this.eventsReady = false;
 

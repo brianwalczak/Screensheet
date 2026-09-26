@@ -5,7 +5,6 @@ const WebSocketConnection = require('./libs/websocket.js');
 
 let connection; // the current connection instance (WebRTC or WebSocket)
 let display = null; // the current display media stream
-let screenSize = null; // the dimensions of `display` param
 let turnMode = 'custom'; // which TURN servers config is shown (custom or cloudflare)
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -164,7 +163,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 },
             });
 
-            screenSize = { width: screen.width, height: screen.height };
             return display;
         } catch (error) {
             console.error("An error occurred while capturing the display: ", error);
@@ -210,7 +208,7 @@ window.addEventListener('DOMContentLoaded', () => {
         }
 
         const iceServers = (connection instanceof WebRTCConnection) ? await ipcRenderer.invoke('ice:resolve', sessionId) : null; // resolved per viewer (like Cloudflare credentials)
-        let handshake = await connection.acceptOffer(sessionId, { display, screenSize, iceServers }, audio.checked, (e) => {
+        let handshake = await connection.acceptOffer(sessionId, { display, iceServers }, audio.checked, (e) => {
             // on message
             try {
                 if (!e.data) return;
@@ -423,7 +421,7 @@ window.addEventListener('DOMContentLoaded', () => {
             start.innerHTML = 'Starting session...';
 
             await createDisplay();
-            await initRemoteInput(screenSize);
+            await initRemoteInput();
             start.classList.add('hidden');
             stop.classList.remove('hidden');
 

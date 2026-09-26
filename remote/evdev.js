@@ -6,7 +6,7 @@ const token = () => ('t' + crypto.randomBytes(8).toString('hex'));
 const BUTTONS = { 0: 0x110, 1: 0x112, 2: 0x111 }; // BTN_LEFT / BTN_MIDDLE / BTN_RIGHT
 
 const heldKeys = new Map(); // keys currently pressed down, so keyup/blur releases them and browser repeats are skipped
-let active = null; // the active portal setup (bus, interfaces, handle, nodeId, scale) during hosting
+let active = null; // the active portal setup (bus, interfaces, handle, nodeId, size) during hosting
 
 // Handles pointer events, repeated by the host from viewer input
 async function pointerEvent(data) {
@@ -14,7 +14,7 @@ async function pointerEvent(data) {
 
     try {
         const { x, y, method } = data;
-        notify('NotifyPointerMotionAbsolute', active.nodeId, x * active.scale.x, y * active.scale.y);
+        notify('NotifyPointerMotionAbsolute', active.nodeId, x * (active.size.width - 1), y * (active.size.height - 1)); // the portal rejects positions outside the stream
 
         if (data.button !== undefined && (method === 'pointerdown' || method === 'pointerup')) {
             const type = (method === 'pointerdown' ? 1 : 0);
@@ -75,7 +75,7 @@ async function releaseAll() {
 }
 
 // Creates the portal session and shows the permission request when session starts
-async function init(screenSize) {
+async function init() {
     const bus = dbus.sessionBus();
     let sessionInterface = null;
 
@@ -138,8 +138,7 @@ async function init(screenSize) {
         if (nodeId === undefined || !width || !height) throw new Error("Unable to access your display stream.");
         if ((devices?.value & (1 | 2)) !== (1 | 2)) throw new Error("Remote control wasn't allowed in the permission prompt.");
 
-        const scale = (screenSize?.width && screenSize?.height) ? { x: width / screenSize.width, y: height / screenSize.height } : { x: 1, y: 1 };
-        active = { bus, interfaces: { session: sessionInterface, remote: remoteInterface }, handle: session_handle.value, nodeId, scale };
+        active = { bus, interfaces: { session: sessionInterface, remote: remoteInterface }, handle: session_handle.value, nodeId, size: { width, height } };
     } catch (error) {
         await closeSession(bus, sessionInterface);
         throw error;

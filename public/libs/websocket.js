@@ -14,7 +14,6 @@ class WebSocketConnection {
         }
 
         this.socket = socket || io();
-        this.screenSize = null;
         this.eventsReady = false;
 
         this._disconnectHandler = null;
@@ -22,9 +21,8 @@ class WebSocketConnection {
 
     // Accepts an offer from a viewer and sets up the connection
     async acceptOffer(offer, onDisconnect) {
-        if (!this.socket || !offer || !offer.width || !offer.height) return null;
+        if (!this.socket || !offer) return null;
 
-        this.screenSize = { width: offer.width, height: offer.height };
         this.eventsReady = true;
         this._disconnectHandler = onDisconnect;
 
@@ -69,7 +67,6 @@ class WebSocketConnection {
 
     // End the session and clean up
     disconnect() {
-        this.screenSize = null;
         this.eventsReady = false;
         this._disconnectHandler = null;
 

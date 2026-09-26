@@ -131,27 +131,22 @@ socket.on('session:disconnect', onDisconnect);
 // -- Handle Keyboard + Mouse -- //
 function calculatePos(event) {
     try {
-        if (!connection || !connection.screenSize) return { x: 0, y: 0 };
+        const rect = canvas.getBoundingClientRect();
+        const clamp = (value) => Math.min(Math.max(value, 0), 1);
 
-        const videoOffset = canvas.getBoundingClientRect();
-        const xRelativeToVideo = event.clientX - videoOffset.left;
-        const yRelativeToVideo = event.clientY - videoOffset.top;
-        const xInScreen = (xRelativeToVideo / canvas.clientWidth) * connection.screenSize.width;
-        const yInScreen = (yRelativeToVideo / canvas.clientHeight) * connection.screenSize.height;
-
-        return { x: xInScreen, y: yInScreen };
+        return { x: clamp((event.clientX - rect.left) / rect.width), y: clamp((event.clientY - rect.top) / rect.height) };
     } catch {
         return { x: 0, y: 0 };
     }
 }
 
 const pointerEvent = (event) => {
-    if (!connection || !connection.eventsReady || !connection.screenSize) return;
+    if (!connection || !connection.eventsReady) return;
     event.preventDefault();
 
     try {
         const { x, y } = calculatePos(event);
-        let data = { name: 'pointer', x: Math.floor(x), y: Math.floor(y), method: event.type };
+        let data = { name: 'pointer', x, y, method: event.type };
 
         if ((event.type === 'pointerup' || event.type === 'pointerdown') && event.button !== undefined) {
             data.button = event.button;
@@ -162,7 +157,7 @@ const pointerEvent = (event) => {
 };
 
 const keyEvent = (event) => {
-    if (!connection || !connection.eventsReady || !connection.screenSize) return;
+    if (!connection || !connection.eventsReady) return;
     event.preventDefault();
 
     try {
@@ -172,7 +167,7 @@ const keyEvent = (event) => {
 
 // Tells the host to release every held key (the page lost focus so keyups for keys still down never arrive)
 const releaseHeldKeys = () => {
-    if (!connection || !connection.eventsReady || !connection.screenSize) return;
+    if (!connection || !connection.eventsReady) return;
 
     try {
         connection.sendEvent({ name: 'keyboard', method: 'releaseall' });
@@ -180,7 +175,7 @@ const releaseHeldKeys = () => {
 };
 
 const scrollEvent = (event) => {
-    if (!connection || !connection.eventsReady || !connection.screenSize) return;
+    if (!connection || !connection.eventsReady) return;
 
     try {
         const { deltaX, deltaY, deltaMode } = event;
