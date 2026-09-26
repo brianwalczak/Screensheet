@@ -203,9 +203,9 @@ function drawFrame() {
 }
 
 // -- Mouse Input -- //
-canvas.addEventListener('pointermove', pointerEvent); // pointer was moved
+video_container.addEventListener('pointermove', pointerEvent); // pointer was moved
 canvas.addEventListener('pointerdown', pointerEvent); // pointer button was pressed down
-canvas.addEventListener('pointerup', pointerEvent); // pointer button was lifted up
+video_container.addEventListener('pointerup', pointerEvent); // pointer button was lifted up
 canvas.addEventListener('wheel', scrollEvent); // pointer was scrolled
 
 // -- Keyboard Input -- //
