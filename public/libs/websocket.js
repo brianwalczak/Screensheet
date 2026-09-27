@@ -16,7 +16,6 @@ class WebSocketConnection {
         this.socket = socket || io();
         this.eventsReady = false;
 
-        this._disconnectHandler = null;
     }
 
     // Accepts an offer from a viewer and sets up the connection
@@ -24,7 +23,6 @@ class WebSocketConnection {
         if (!this.socket || !offer) return null;
 
         this.eventsReady = true;
-        this._disconnectHandler = onDisconnect;
 
         try {
             const mediaSource = new MediaSource();
@@ -37,15 +35,13 @@ class WebSocketConnection {
                 sourceBuffer = mediaSource.addSourceBuffer(offer.codec);
             });
 
-            this.socket.on('stream:frame', async (chunk) => {
+            this._onFrame = async (chunk) => {
                 if (sourceBuffer && !sourceBuffer.updating) {
                     sourceBuffer.appendBuffer(chunk);
                 }
-            });
+            };
 
-            this.socket.on('session:disconnect', () => {
-                if (this._disconnectHandler) this._disconnectHandler();
-            });
+            this.socket.on('stream:frame', this._onFrame);
 
             video_container.classList.remove('hidden');
         } catch (error) {
@@ -68,11 +64,11 @@ class WebSocketConnection {
     // End the session and clean up
     disconnect() {
         this.eventsReady = false;
-        this._disconnectHandler = null;
 
-        if (this.socket) {
-            this.socket.off('stream:frame');
-            this.socket.off('session:disconnect');
+        // only remove our own listener since the socket is shared with the page
+        if (this.socket && this._onFrame) {
+            this.socket.off('stream:frame', this._onFrame);
+            this._onFrame = null;
         }
 
         return true;

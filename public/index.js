@@ -46,6 +46,9 @@ function showError(message) {
 
 function errorCode(code) {
     switch (code) {
+        case 400:
+            showError('Please enter a connection code, or a username and password.');
+            break;
         case 404:
             showError('It looks like this connection code is invalid.');
             break;
@@ -54,6 +57,9 @@ function errorCode(code) {
             break;
         case 410:
             showError('You have been disconnected by the host.');
+            break;
+        case 'dropped':
+            showError('The connection to the host was lost.');
             break;
         default:
             showError('An unknown error occurred. Please try again.');
@@ -65,21 +71,31 @@ function errorCode(code) {
 }
 
 socket.on('error', (code) => { errorCode(code); });
+let accepting = false;
+
 socket.on('session:offer', async (data) => {
-    if (data.declined) return errorCode(403);
-    connection = data.type === 'websocket' ? new WebSocketConnection(socket) : new WebRTCConnection(data.iceServers);
+    if (data.declined) return errorCode(data.failed ? 500 : 403);
+    if (accepting) return;
+    accepting = true;
 
-    const handshake = await connection.acceptOffer(data.offer, onDisconnect);
+    try {
+        connection?.disconnect();
+        connection = data.type === 'websocket' ? new WebSocketConnection(socket) : new WebRTCConnection(data.iceServers);
 
-    if (handshake) {
-        socket.emit('session:answer', handshake);
-    } else {
-        socket.emit('session:disconnect');
-        onDisconnect();
+        const handshake = await connection.acceptOffer(data.offer, onDisconnect);
+
+        if (handshake) {
+            socket.emit('session:answer', handshake);
+        } else {
+            socket.emit('session:disconnect');
+            onDisconnect();
+        }
+
+        connect.textContent = 'Connect';
+        connect.disabled = false;
+    } finally {
+        accepting = false;
     }
-
-    connect.textContent = 'Connect';
-    connect.disabled = false;
 });
 
 async function startConnection() {
@@ -116,14 +132,18 @@ async function startConnection() {
     socket.emit('session:request', payload);
 }
 
-async function onDisconnect() {
+async function onDisconnect(reason = 410) { // disconnected by host by default
+    if (!connection && !connect.disabled) return; // nothing to disconnect lol...
+
     video_container.classList.add('hidden');
     input.value = '';
     username.value = '';
     password.value = '';
 
-    connection.disconnect();
-    return errorCode(410);
+    connection?.disconnect();
+    connection = null;
+
+    return errorCode(reason);
 }
 
 socket.on('session:disconnect', onDisconnect);
@@ -191,15 +211,19 @@ const scrollEvent = (event) => {
 };
 
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+let frameCallback = null;
+
 video.addEventListener('loadedmetadata', () => {
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
+
+    if (frameCallback) video.cancelVideoFrameCallback(frameCallback); // one draw loop only (even after reconnecting)
     drawFrame();
 });
 
 function drawFrame() {
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    video.requestVideoFrameCallback(drawFrame);
+    frameCallback = video.requestVideoFrameCallback(drawFrame);
 }
 
 // -- Mouse Input -- //

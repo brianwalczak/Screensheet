@@ -74,9 +74,13 @@ class WebRTCConnection {
                 };
             };
 
-            this.pc.onconnectionstatechange = async () => {
-                if (["disconnected", "failed", "closed"].includes(this.pc.connectionState) && onDisconnect) {
-                    onDisconnect();
+            this.pc.onconnectionstatechange = () => {
+                clearTimeout(this.dropTimer);
+
+                if (["failed", "closed"].includes(this.pc.connectionState)) {
+                    onDisconnect?.('dropped');
+                } else if (this.pc.connectionState === "disconnected") { // could be a network thing, give them a few seconds
+                    this.dropTimer = setTimeout(() => onDisconnect?.('dropped'), 5000);
                 }
             };
         } catch (error) {
@@ -104,6 +108,8 @@ class WebRTCConnection {
 
     // End the session and close the P2P connection
     disconnect() {
+        clearTimeout(this.dropTimer);
+
         if (this.channel) {
             this.channel.close();
         }
