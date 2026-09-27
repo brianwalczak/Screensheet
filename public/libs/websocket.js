@@ -1,10 +1,10 @@
-const video_container = document.querySelector('#video-container');
-const video = document.querySelector('#video-container video');
+const video_container = document.querySelector("#video-container");
+const video = document.querySelector("#video-container video");
 
 class WebSocketConnection {
     constructor(socket = null) {
         if (typeof io !== "function" || !window.MediaSource) {
-            alert('Whoops, looks like your browser does not support WebSockets! Please try using a different protocol, such as WebRTC, or use a different browser (Google Chrome recommended).');
+            alert("Whoops, looks like your browser does not support WebSockets! Please try using a different protocol, such as WebRTC, or use a different browser (Google Chrome recommended).");
             throw new Error("WebSockets are not supported by this browser.");
         }
 
@@ -15,7 +15,6 @@ class WebSocketConnection {
 
         this.socket = socket || io();
         this.eventsReady = false;
-
     }
 
     // Accepts an offer from a viewer and sets up the connection
@@ -29,8 +28,8 @@ class WebSocketConnection {
             let sourceBuffer = null;
 
             video.src = URL.createObjectURL(mediaSource);
-            mediaSource.addEventListener('sourceopen', () => {
-                if (!offer.codec) return alert('Whoops, looks like your browser does not support the required codec!');
+            mediaSource.addEventListener("sourceopen", () => {
+                if (!offer.codec) return alert("Whoops, looks like your browser does not support the required codec!");
 
                 sourceBuffer = mediaSource.addSourceBuffer(offer.codec);
             });
@@ -41,15 +40,15 @@ class WebSocketConnection {
                 }
             };
 
-            this.socket.on('stream:frame', this._onFrame);
+            this.socket.on("stream:frame", this._onFrame);
 
-            video_container.classList.remove('hidden');
+            video_container.classList.remove("hidden");
         } catch (error) {
             console.error("An unknown error occurred while accepting WebSocket offer: ", error);
             return null;
         }
 
-        return { type: 'websocket' };
+        return { type: "websocket" };
     }
 
     // Send a remote control event to the server directly (no need to relay via peer)
@@ -67,7 +66,7 @@ class WebSocketConnection {
 
         // only remove our own listener since the socket is shared with the page
         if (this.socket && this._onFrame) {
-            this.socket.off('stream:frame', this._onFrame);
+            this.socket.off("stream:frame", this._onFrame);
             this._onFrame = null;
         }
 

@@ -1,11 +1,11 @@
-const { ipcRenderer } = require('electron');
+const { ipcRenderer } = require("electron");
 const StreamFrames = require("./frames.js");
 
 class WebSocketConnection {
     constructor() {
         this.peers = {
             connected: new Map(), // stores active socket connections
-            pending: new Map() // stores pending connection requests
+            pending: new Map(), // stores pending connection requests
         };
 
         this.frames = null;
@@ -64,14 +64,18 @@ class WebSocketConnection {
         onStateChange("connected");
 
         try {
-            const screen = await ipcRenderer.invoke('display');
+            const screen = await ipcRenderer.invoke("display");
 
-            this.frames = await StreamFrames.create(screen, async (frame) => {
-                await ipcRenderer.invoke('stream:frame', frame);
-            }, enableAudio);
+            this.frames = await StreamFrames.create(
+                screen,
+                async (frame) => {
+                    await ipcRenderer.invoke("stream:frame", frame);
+                },
+                enableAudio,
+            );
         } catch (error) {
             console.error("An error occurred while starting frame stream: ", error);
-            
+
             onStateChange("disconnected");
             this.peers.connected.delete(socketId);
             return null;
@@ -81,8 +85,8 @@ class WebSocketConnection {
             sessionId: socketId,
             type: "websocket",
             offer: {
-                codec: this.frames.codec
-            }
+                codec: this.frames.codec,
+            },
         };
     }
 
@@ -96,13 +100,13 @@ class WebSocketConnection {
         let confirmation;
 
         if (enableAudio) {
-            confirmation = confirm('Audio sharing is highly experimental for WebSocket connections and may increase CPU usage, as well as cause instability. It\'s highly recommended to use WebRTC for audio sharing.\n\nIf you continue, all users will be disconnected before proceeding. Are you sure you want to enable audio sharing?');
+            confirmation = confirm("Audio sharing is highly experimental for WebSocket connections and may increase CPU usage, as well as cause instability. It's highly recommended to use WebRTC for audio sharing.\n\nIf you continue, all users will be disconnected before proceeding. Are you sure you want to enable audio sharing?");
 
             if (confirmation) {
-                confirmation = confirm('This is your final warning. Are you absolutely sure you want to enable audio sharing for WebSocket connections?');
+                confirmation = confirm("This is your final warning. Are you absolutely sure you want to enable audio sharing for WebSocket connections?");
             }
         } else {
-            confirmation = confirm('Disabling audio sharing will disconnect all current users. Do you want to proceed?');
+            confirmation = confirm("Disabling audio sharing will disconnect all current users. Do you want to proceed?");
         }
 
         return confirmation;

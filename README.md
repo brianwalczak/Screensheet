@@ -5,6 +5,7 @@
 > **This project is currently in its beta state as I gather user feedback. If you encounter any issues, please report them <a href='https://github.com/BrianWalczak/Screensheet/issues'>here</a> :)**
 
 ## Features
+
 - (🖥️) Instantly share your desktop remotely with a secure, 8-digit connection code.
 - (🔐) Unattended access support with secure user/password authentication (hashed with bcrypt.js).
 - (⚡) No account or signup required - start a session in seconds, right on your network.
@@ -17,6 +18,7 @@
 - (👤) Open-source under Apache 2.0 license - contribute or view it anytime.
 
 ## What's new? (v1.3.0)
+
 - Support for unattended access with username/password authentication
 - Updated magic theme to feature a new autumn theme!
 - Major fixes and improvements for error handling
@@ -30,17 +32,20 @@
 ## Demonstration
 
 ### Creating a Session
+
 https://github.com/user-attachments/assets/37a4ada9-67e2-4964-ac90-3d86231351c7
 
 ### Viewing a Session
+
 https://github.com/user-attachments/assets/40f3a9fd-9f43-44d6-aa8c-9d586e276eab
 
-
 ## Getting Started
+
 > [!TIP]
 > If you're not planning to use Screensheet for development, you can download the pre-bundled executable on the [releases](https://github.com/brianwalczak/Screensheet/releases/latest) page.
 
 To start, you can download this repository by using the following:
+
 ```bash
 git clone https://github.com/BrianWalczak/Screensheet.git
 cd Screensheet
@@ -49,6 +54,7 @@ cd Screensheet
 Before you continue, make sure that Node.js is properly installed (run `node --version` to check if it exists). If you don't have it installed yet, you can download it [here](https://nodejs.org/en/download).
 
 Next, install the required dependencies and start the server (port 3000):
+
 ```bash
 npm install
 npm run start

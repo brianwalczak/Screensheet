@@ -1,4 +1,4 @@
-const os = require('os');
+const os = require("os");
 
 const disabled = { pointerEvent() {}, keyboardEvent() {}, scrollEvent() {}, dispose: async () => {} }; // ignores all input
 let backend = disabled; // no input until a hosting session starts
@@ -9,11 +9,11 @@ async function init() {
     if (ready) return;
     ready = true;
 
-    const isWayland = (os.platform() === 'linux' && (process.env.XDG_SESSION_TYPE === 'wayland' || !!process.env.WAYLAND_DISPLAY));
+    const isWayland = os.platform() === "linux" && (process.env.XDG_SESSION_TYPE === "wayland" || !!process.env.WAYLAND_DISPLAY);
 
     // Wayland needs native evdev layer, everything else uses nut.js
     try {
-        const selected = require(isWayland ? './evdev.js' : './nutjs.js');
+        const selected = require(isWayland ? "./evdev.js" : "./nutjs.js");
         await selected.init();
         backend = selected;
     } catch (error) {
@@ -34,5 +34,5 @@ module.exports = {
     dispose,
     pointerEvent: (data) => backend.pointerEvent(data),
     keyboardEvent: (data) => backend.keyboardEvent(data),
-    scrollEvent: (data) => backend.scrollEvent(data)
+    scrollEvent: (data) => backend.scrollEvent(data),
 };

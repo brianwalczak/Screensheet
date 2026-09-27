@@ -1,5 +1,5 @@
-const video_container = document.querySelector('#video-container');
-const video = document.querySelector('#video-container video');
+const video_container = document.querySelector("#video-container");
+const video = document.querySelector("#video-container video");
 
 // Uses the STUN/TURN servers the host sent with its offer
 function createPeerConnection(iceServers) {
@@ -17,7 +17,7 @@ function createPeerConnection(iceServers) {
 class WebRTCConnection {
     constructor(iceServers) {
         if (!window.RTCPeerConnection) {
-            alert('Whoops, looks like your browser does not support WebRTC! Please try using a different browser (Google Chrome recommended), or a different protocol, such as WebSockets.');
+            alert("Whoops, looks like your browser does not support WebRTC! Please try using a different browser (Google Chrome recommended), or a different protocol, such as WebSockets.");
             throw new Error("WebRTC is not supported by this browser.");
         }
 
@@ -33,7 +33,7 @@ class WebRTCConnection {
         this.pc.ontrack = (event) => {
             if (!event.streams || !event.streams[0]) return;
 
-            video_container.classList.remove('hidden');
+            video_container.classList.remove("hidden");
             video.srcObject = event.streams[0];
         };
 
@@ -44,7 +44,7 @@ class WebRTCConnection {
             await this.pc.setLocalDescription(answer);
 
             // Wait for connection to finish gathering ICE candidates (10 seconds max)
-            await new Promise(resolve => {
+            await new Promise((resolve) => {
                 if (this.pc.iceGatheringState === "complete") {
                     resolve();
                 } else {
@@ -66,11 +66,11 @@ class WebRTCConnection {
                     try {
                         const message = JSON.parse(e.data);
 
-                        if (message.type === 'ready') {
+                        if (message.type === "ready") {
                             this.channel = event.channel;
                             this.eventsReady = true;
                         }
-                    } catch { };
+                    } catch {}
                 };
             };
 
@@ -78,9 +78,10 @@ class WebRTCConnection {
                 clearTimeout(this.dropTimer);
 
                 if (["failed", "closed"].includes(this.pc.connectionState)) {
-                    onDisconnect?.('dropped');
-                } else if (this.pc.connectionState === "disconnected") { // could be a network thing, give them a few seconds
-                    this.dropTimer = setTimeout(() => onDisconnect?.('dropped'), 5000);
+                    onDisconnect?.("dropped");
+                } else if (this.pc.connectionState === "disconnected") {
+                    // could be a network thing, give them a few seconds
+                    this.dropTimer = setTimeout(() => onDisconnect?.("dropped"), 5000);
                 }
             };
         } catch (error) {
@@ -90,7 +91,7 @@ class WebRTCConnection {
 
         return {
             type: this.pc.localDescription.type,
-            sdp: this.pc.localDescription.sdp
+            sdp: this.pc.localDescription.sdp,
         };
     }
 

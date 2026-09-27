@@ -2,40 +2,40 @@
 
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
+    -webkit-appearance: none;
+    margin: 0;
 }
 
 input[type="number"] {
-  -moz-appearance: textfield;
+    -moz-appearance: textfield;
 }
 
 .tab::-webkit-scrollbar {
-  display: none;
+    display: none;
 }
 
 .tab {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
 
 main {
-  overflow: hidden;
+    overflow: hidden;
 }
 
 .tab {
-  overflow-y: auto;
+    overflow-y: auto;
 }
 
 .connection_items .item_name,
 .connections_list .item_name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 160px;
 }
 
 .connections_list > div,
 .connection_items > div {
-  overflow: hidden;
+    overflow: hidden;
 }
