@@ -10,7 +10,7 @@ const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 
 const settingsPath = path.join((electron.isPackaged ? electron.getPath('userData') : __dirname), 'settings.json');
-let activeCode = null;
+let session;
 let settings;
 let window;
 let server;
@@ -19,17 +19,43 @@ let ws = new Set();
 
 electron.commandLine.appendSwitch('enable-logging');
 
-async function newServer(port = (settings?.port ?? 3000)) {
-    let restart = false;
+function mergeDeep(target, changes) {
+    const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
+    const merged = { ...target };
 
-    if (server) {
-        restart = true;
-        await server.close();
+    for (const [key, value] of Object.entries(changes ?? {})) {
+        if (['__proto__', 'constructor', 'prototype'].includes(key)) continue;
+        merged[key] = (isObject(value) && isObject(merged[key])) ? mergeDeep(merged[key], value) : value;
     }
 
-    server = http.listen(port, () => {
-        console.log(`Server has been ${restart ? 'restarted' : 'started'} on http://localhost:${port}.`);
+    return merged;
+}
+
+function newServer(port = (settings?.port ?? 3000)) {
+    const restart = http.listening;
+    if (restart) http.close();
+
+    return new Promise((resolve, reject) => {
+        const onError = (error) => {
+            http.off('listening', onListening);
+            reject(error);
+        };
+
+        const onListening = () => {
+            http.off('error', onError);
+            console.log(`Server has been ${restart ? 'restarted' : 'started'} on http://localhost:${port}.`);
+            resolve();
+        };
+
+        http.once('error', onError);
+        http.once('listening', onListening);
+        server = http.listen(port);
     });
+}
+
+// Sends a message to the host window (if it's still open)
+function sendToHost(channel, data) {
+    if (window && !window.isDestroyed()) window.webContents.send(channel, data);
 }
 
 function createWindow() {
@@ -131,13 +157,13 @@ ipcMain.handle('stream:frame', async (event, frame) => {
 
 // Start a new session and generate a new session code
 ipcMain.handle('session:start', async (event) => {
-    activeCode = Math.random().toString(36).substring(2, 10).toUpperCase();
-    return activeCode;
+    session = { code: Math.random().toString(36).substring(2, 10).toUpperCase() };
+    return session.code;
 });
 
 // Stop the current session (invalidate the session code)
 ipcMain.handle('session:stop', async (event) => {
-    activeCode = null;
+    session = null;
     ws.clear();
     ice.revokeAll();
 
@@ -145,13 +171,15 @@ ipcMain.handle('session:stop', async (event) => {
 });
 
 // Sends session responses from the host to the viewer (accept or decline)
-ipcMain.handle('session:response', async (event, { sessionId, offer, type, iceServers, declined }) => {
+ipcMain.handle('session:response', async (event, { sessionId, offer, type, iceServers, declined, failed }) => {
     try {
         if (sessionId) {
             if (offer && !declined) { // accept
+                if (type === 'websocket') ws.add(sessionId); // only viewers the host accepted get the stream and input
                 io.to(sessionId).emit('session:offer', { offer, type, iceServers });
             } else { // decline
-                io.to(sessionId).emit('session:offer', { declined: true });
+                ice.revoke(sessionId); // a failed approve may have already generated TURN credentials
+                io.to(sessionId).emit('session:offer', { declined: true, failed });
             }
         }
     } catch (error) {
@@ -206,17 +234,32 @@ ipcMain.handle('settings:load', async () => {
 // Update settings file with modified settings from host
 ipcMain.handle('settings:update', async (event, modified) => {
     try {
-        if (modified?.password && modified.password.length > 0) {
-            modified.password = (await bcrypt.hash(modified.password, 10));
+        if (modified?.login?.password) {
+            modified.login.password = (await bcrypt.hash(modified.login.password, 10));
         }
 
-        const updated = { ...settings, ...modified };
-        updated.stunServer = updated.stunServer ? updated.stunServer : ice.DEFAULT_STUN_SERVER; // reset to default if cleared
+        // Only keep a new port if it's valid and the server can actually listen on it (the host sees the old port back otherwise)
+        if (modified?.port !== undefined) {
+            const port = Number(modified.port);
+            const current = (settings?.port ?? 3000);
+
+            if (!Number.isInteger(port) || port < 1024 || port > 65535) {
+                delete modified.port;
+            } else if (port !== current) {
+                try {
+                    await newServer(port);
+                } catch (error) {
+                    console.error(`Unable to start the server on port ${port}, keeping ${current}: `, error);
+                    delete modified.port;
+
+                    await newServer(current).catch(error => console.error('Unable to restart the server: ', error));
+                }
+            }
+        }
+
+        const updated = mergeDeep(settings, modified);
+        updated.ice = { ...updated.ice, stun: (updated.ice?.stun || ice.DEFAULT_STUN_SERVER) }; // reset STUN to default if cleared
         fs.writeFileSync(settingsPath, JSON.stringify(updated, null, 4));
-
-        if (modified.port && modified.port !== (settings?.port ?? 3000) && server) {
-            await newServer(modified.port);
-        }
 
         settings = updated;
         return settings;
@@ -241,17 +284,24 @@ io.on('connection', (socket) => {
         }
 
         ice.revoke(sessionId);
-        window.webContents.send('session:disconnect', sessionId);
+        sendToHost('session:disconnect', sessionId);
     };
 
     // Repeat session requests from viewers trying to connect to the host
     socket.on('session:request', async (payload) => {
-        if (!payload || !activeCode || (!payload.code && (!payload.username || !payload.password)) || (payload.username && payload.password && !settings?.login)) return socket.emit('error', 404);
-        if (payload.code && payload.code !== activeCode) return socket.emit('error', 404);
+        const { code, username, password } = (payload && typeof payload === 'object') ? payload : {};
+        const hasCode = typeof code === 'string' && code.length > 0;
+        const hasLogin = (typeof username === 'string' && username.length > 0) && (typeof password === 'string' && password.length > 0);
 
-        if (payload.username && payload.password) {
-            const match = await bcrypt.compare(payload.password, settings?.password || '');
-            if (!settings?.username || !settings?.password || !match) return socket.emit('error', 403);
+        if (!hasCode && !hasLogin) return socket.emit('error', 400); // bad request
+        if (!session || (hasCode && code !== session.code) || (hasLogin && !settings?.login?.enabled)) return socket.emit('error', 404); // invalid session
+
+        if (hasLogin) {
+            if (!settings?.login?.password || username !== settings?.login?.username) return socket.emit('error', 403);
+
+            // validate the password now
+            const match = await bcrypt.compare(password, settings.login.password);
+            if (!match) return socket.emit('error', 403);
         }
 
         // Try Cloudflare header first, then x-forwarded-for, then fallback
@@ -268,24 +318,20 @@ io.on('connection', (socket) => {
             if (ip === "::1" || ip === "127.0.0.1") ip = "Local Connection";
         }
 
-        window.webContents.send('session:request', { sessionId, ip, auth: (payload.username && payload.password) });
+        sendToHost('session:request', { sessionId, ip, auth: hasLogin });
     });
 
     // Repeat session answers from viewer to host when establishing a connection (AFTER approval)
     socket.on('session:answer', (answer) => {
-        if (!answer) return;
-        window.webContents.send('session:answer', { sessionId, answer });
-
-        if (answer?.type === 'websocket') {
-            ws.add(sessionId);
-        }
+        if (!answer || typeof answer !== 'object') return;
+        sendToHost('session:answer', { sessionId, answer });
     });
 
     for (const name of ['pointer', 'keyboard', 'scroll']) {
         socket.on(`input:${name}`, (data) => {
-            if (!ws.has(sessionId) || !settings.control || !data) return;
+            if (!ws.has(sessionId) || !settings?.control || !data || typeof data !== 'object') return;
 
-            window.webContents.send('remote:input', { ...data, name });
+            sendToHost('remote:input', { ...data, name });
         });
     }
 
@@ -296,12 +342,12 @@ io.on('connection', (socket) => {
 
 (async () => {
     try {
-        const defaults = { port: 3000, audio: true, control: true, method: 'webrtc', stunServer: ice.DEFAULT_STUN_SERVER };
+        const defaults = { port: 3000, audio: true, control: true, method: 'webrtc', ice: { stun: ice.DEFAULT_STUN_SERVER } };
         let data;
 
         if (fs.existsSync(settingsPath)) {
             const file = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
-            data = { ...defaults, ...file }; // apply defaults if missing
+            data = mergeDeep(defaults, file); // apply defaults if missing (including nested ones)
         } else {
             data = defaults;
         }
@@ -309,7 +355,7 @@ io.on('connection', (socket) => {
         fs.writeFileSync(settingsPath, JSON.stringify(data, null, 4));
         settings = data;
 
-        await newServer();
+        await newServer().catch(error => console.error(`Unable to start the server on port ${settings.port}: `, error)); // like port is already in use
     } catch (error) {
         console.error('Error loading settings:', error);
     }

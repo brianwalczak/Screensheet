@@ -2,13 +2,13 @@ const DEFAULT_STUN_SERVER = 'stun:stun.cloudflare.com:3478';
 const credentials = new Map();
 
 // Generate short-lived Cloudflare TURN credentials
-async function generateCredential({ keyId, apiToken } = {}) {
-    if (!keyId || !apiToken) throw new Error('Cloudflare Turn Token ID and API Token are required.');
+async function generateCredential({ id, token } = {}) {
+    if (!id || !token) throw new Error('Cloudflare Turn Token ID and API Token are required.');
 
-    const res = await fetch(`https://rtc.live.cloudflare.com/v1/turn/keys/${encodeURIComponent(keyId)}/credentials/generate-ice-servers`, {
+    const res = await fetch(`https://rtc.live.cloudflare.com/v1/turn/keys/${encodeURIComponent(id)}/credentials/generate-ice-servers`, {
         method: 'POST',
         headers: {
-            'Authorization': `Bearer ${apiToken}`,
+            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({ ttl: 86400 }),
@@ -21,17 +21,17 @@ async function generateCredential({ keyId, apiToken } = {}) {
 
     // Only keep TURN (STUN added separately) and drop port 53 URLs cause browsers time out on them
     const servers = iceServers.filter(server => server.username).map(server => ({ ...server, urls: [].concat(server.urls).filter(url => !/:53(\?|$)/.test(url)) })).filter(server => server.urls.length > 0);
-    return { servers, credential: { keyId, apiToken, username } };
+    return { servers, credential: { id, token, username } };
 }
 
 // Revokes short-lived Cloudflare TURN credentials (so they can't be reused)
-async function revokeCredential({ keyId, apiToken, username } = {}) {
-    if (!keyId || !apiToken || !username) return;
+async function revokeCredential({ id, token, username } = {}) {
+    if (!id || !token || !username) return;
 
-    const res = await fetch(`https://rtc.live.cloudflare.com/v1/turn/keys/${encodeURIComponent(keyId)}/credentials/${encodeURIComponent(username)}/revoke`, {
+    const res = await fetch(`https://rtc.live.cloudflare.com/v1/turn/keys/${encodeURIComponent(id)}/credentials/${encodeURIComponent(username)}/revoke`, {
         method: 'POST',
         headers: {
-            'Authorization': `Bearer ${apiToken}`
+            'Authorization': `Bearer ${token}`
         },
         signal: AbortSignal.timeout(5000)
     });
@@ -60,18 +60,18 @@ function revokeAll() {
 
 // Resolves the ICE servers for a viewer from settings
 async function resolve(settings, sessionId) {
-    const stun = [{ urls: settings?.stunServer || DEFAULT_STUN_SERVER }];
+    const stun = [{ urls: settings?.ice?.stun || DEFAULT_STUN_SERVER }];
 
     // Custom TURN servers (if any)
-    if (settings?.turnMode !== 'cloudflare') {
-        return [...stun, ...(settings?.iceServers ?? [])]; // empty if no custom
+    if (settings?.ice?.method !== 'cloudflare') {
+        return [...stun, ...(settings?.ice?.turn ?? [])]; // empty if no custom
     }
 
     // Cloudflare TURN servers (skipped if keys were never set)
-    if (!settings.cloudflare?.keyId || !settings.cloudflare?.apiToken) return stun;
+    if (!settings.ice.cloudflare?.id || !settings.ice.cloudflare?.token) return stun;
 
     try {
-        const { servers, credential } = await generateCredential(settings.cloudflare);
+        const { servers, credential } = await generateCredential(settings.ice.cloudflare);
 
         await revoke(sessionId); // revoke any previous credentials for the viewer
         credentials.set(sessionId, credential);
