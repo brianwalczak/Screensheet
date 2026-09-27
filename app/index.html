@@ -6,54 +6,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Screensheet Client</title>
   <link href="output.css" rel="stylesheet">
-  <style>
-    input[type="number"]::-webkit-inner-spin-button,
-    input[type="number"]::-webkit-outer-spin-button {
-      -webkit-appearance: none;
-      margin: 0;
-    }
-
-    input[type="number"] {
-      -moz-appearance: textfield;
-    }
-
-    .tab::-webkit-scrollbar {
-      display: none;
-    }
-
-    .tab {
-      scrollbar-width: none;
-      -ms-overflow-style: none;
-    }
-
-    main {
-      overflow: hidden;
-    }
-
-    .tab {
-      overflow-y: auto;
-    }
-
-    .connection_items .item_name,
-    .connections_list .item_name {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      max-width: 160px;
-    }
-
-    .connections_list>div,
-    .connection_items>div {
-      overflow: hidden;
-    }
-  </style>
 </head>
 
 <body class="bg-white h-full transition-colors duration-500 ease-in-out">
   <main class="w-full h-full max-w-md flex flex-col">
     <div class="p-8 pb-4 pt-12 text-center">
       <div class="flex items-center justify-center mb-2">
-        <svg class="w-8 h-8 text-gray-700 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-8 h-8 text-gray-900 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z">
           </path>
@@ -91,10 +50,10 @@
       </div>
 
       <div class="mb-6">
-        <button id="start" onclick="window.session.start()"
+        <button id="start"
           class="cursor-pointer w-full bg-gray-900 hover:bg-gray-800 text-white font-medium py-3 rounded-lg transition-colors duration-200">Start
           Session</button>
-        <button id="stop" onclick="window.session.stop()"
+        <button id="stop"
           class="cursor-pointer hidden w-full bg-gray-900 hover:bg-gray-800 text-white font-medium py-3 rounded-lg transition-colors duration-200">Stop
           Session</button>
       </div>
@@ -105,7 +64,7 @@
         <div class="relative">
           <input type="text" id="code" placeholder="—" readonly
             class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-center text-xl font-mono py-3 rounded-lg focus:outline-none focus:border-gray-400 transition-colors placeholder-gray-400" />
-          <button id="copy" onclick="window.session.copy()"
+          <button id="copy"
             class="cursor-pointer absolute right-2 top-1/2 transform -translate-y-1/2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded transition-colors text-xs font-medium">Copy</button>
         </div>
       </div>
@@ -214,21 +173,21 @@
               </div>
               <div>
                 <p class="item_name text-sm font-medium text-gray-900">0.0.0.0</p>
-                <p class="text-xs text-gray-500">Awaiting approval now.</p>
+                <p class="item_desc text-xs text-gray-500">Awaiting approval now.</p>
               </div>
             </div>
             <div class="flex items-center space-x-2">
               <span class="w-2 h-2 bg-yellow-500 rounded-full"></span>
-              <span class="text-xs text-yellow-600 font-medium">Pending</span>
+              <span class="item_status text-xs text-yellow-600 font-medium">Pending</span>
             </div>
           </div>
           <div class="flex space-x-2">
             <button
-              class="item_accept flex-1 cursor-pointer bg-gray-900 hover:bg-gray-800 text-white font-medium py-2 rounded-lg transition-colors text-sm">
+              class="item_accept flex-1 cursor-pointer bg-gray-900 hover:bg-gray-800 text-white font-medium py-2 rounded-lg transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-900">
               Accept
             </button>
             <button
-              class="item_decline flex-1 cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 rounded-lg transition-colors text-sm">
+              class="item_decline flex-1 cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 rounded-lg transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-100">
               Decline
             </button>
           </div>
@@ -252,6 +211,7 @@
             <input type="number" id="port" min="1024" max="65535" value="3000"
               class="w-20 bg-white border border-gray-300 text-gray-900 text-sm text-center py-1 px-2 rounded focus:outline-none focus:border-gray-400 transition-colors" />
           </div>
+          <p id="port_error" class="hidden text-xs text-red-600"></p>
 
           <div class="flex items-center justify-between pt-3 border-t border-gray-200">
             <div class="flex items-center space-x-3">
@@ -319,7 +279,7 @@
         </div>
       </div>
 
-      <div id="ice_settings" class="mt-6">
+      <div id="advanced_container" class="mt-6">
         <button id="advanced_toggle"
           class="cursor-pointer w-full flex items-center justify-center space-x-1 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors">
           <span>Advanced Options</span>
@@ -347,18 +307,18 @@
             </div>
 
             <div id="turn_custom" class="flex flex-col space-y-2">
-              <textarea id="ice_servers" rows="5" spellcheck="false"
+              <textarea id="turn_servers" rows="5" spellcheck="false"
                 class="resize-none bg-white border border-gray-300 text-gray-900 text-xs font-mono py-2 px-3 rounded focus:outline-none focus:border-gray-400 transition-colors"
                 placeholder='[
   { "urls": "turn:turn.example.com:3478", "username": "user", "credential": "pass" }
 ]'></textarea>
 
               <p class="text-xs text-gray-500">TURN server relaying is disabled by default.</p>
-              <p id="ice_servers_error" class="hidden text-xs text-red-600"></p>
+              <p id="turn_servers_error" class="hidden text-xs text-red-600"></p>
             </div>
 
             <div id="turn_cloudflare" class="hidden flex flex-col space-y-2">
-              <input id="cloudflare_key" type="text" spellcheck="false" placeholder="Turn Token ID"
+              <input id="cloudflare_id" type="text" spellcheck="false" placeholder="Turn Token ID"
                 class="bg-white border border-gray-300 text-gray-900 text-xs font-mono py-2 px-3 rounded focus:outline-none focus:border-gray-400 transition-colors">
 
               <input id="cloudflare_token" type="password" spellcheck="false" placeholder="API Token"

@@ -1,14 +1,104 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { ipcRenderer } = require('electron');
 const { init: initRemoteInput, dispose: disposeRemoteInput, pointerEvent, keyboardEvent, scrollEvent } = require('@screensheet/remote');
 const WebRTCConnection = require('./libs/webrtc.js');
 const WebSocketConnection = require('./libs/websocket.js');
 
+const STEP_LABELS = {
+    resolving: 'Preparing connection...',
+    offering: 'Setting up stream...',
+    gathering: 'Finding the best route...',
+    answering: 'Waiting for viewer...',
+    establishing: 'Finalizing connection...'
+};
+
+let settings; // the host's saved settings
 let connection; // the current connection instance (WebRTC or WebSocket)
-let display = null; // the current display media stream
-let turnMode = 'custom'; // which TURN servers config is shown (custom or cloudflare)
+let display; // the current display media stream
+let refresh; // timer that re-renders the connections list
+
+// Shows an error message under a field (or hides it if empty)
+function showError(element, error) {
+    element.textContent = error ?? '';
+    element.classList.toggle('hidden', !error);
+}
+
+// Changes the status of a toggle switch
+function toggleChange(toggle, val) {
+    const span = toggle.querySelector('span');
+
+    if (val) {
+        toggle.classList.remove('bg-gray-300');
+        toggle.classList.add('bg-gray-900');
+        span.classList.remove('translate-x-1');
+        span.classList.add('translate-x-6');
+    } else {
+        toggle.classList.remove('bg-gray-900');
+        toggle.classList.add('bg-gray-300');
+        span.classList.remove('translate-x-6');
+        span.classList.add('translate-x-1');
+    }
+}
+
+// Validates and parses a JSON string of ICE servers
+function parseIceServers(text) {
+    const isValidServer = s => s && typeof s === 'object' && (typeof s.urls === 'string' || (Array.isArray(s.urls) && s.urls.length > 0));
+    if (!text.trim()) return { servers: null };
+
+    let servers;
+    try {
+        servers = JSON.parse(text);
+    } catch (error) {
+        return { error: `Your JSON array is invalid: ${error.message}` };
+    }
+
+    if (!Array.isArray(servers)) return { error: 'Your data must be formatted as a JSON array of servers.' };
+    if (servers.length === 0) return { error: 'You must have at least one server.' };
+
+    const badIndex = servers.findIndex(s => !isValidServer(s));
+    if (badIndex !== -1) return { error: `Server #${badIndex + 1} must contain a "urls" field.` };
+
+    try {
+        new RTCPeerConnection({ iceServers: servers }).close();
+    } catch (error) {
+        return { error: error.message };
+    }
+
+    return { servers };
+}
+
+// Gets the display media (screen + audio) and prepares for sharing
+async function createDisplay() {
+    try {
+        const screen = await ipcRenderer.invoke('display');
+
+        display = await navigator.mediaDevices.getUserMedia({
+            audio: {
+                mandatory: {
+                    chromeMediaSource: 'desktop',
+                }
+            },
+            video: {
+                mandatory: {
+                    chromeMediaSource: 'desktop',
+                    chromeMediaSourceId: screen.display[0].id,
+                    frameRate: { min: 15, ideal: 30, max: 60 },
+                    minWidth: screen.width,
+                    minHeight: screen.height,
+                    maxWidth: screen.width,
+                    maxHeight: screen.height,
+                },
+            },
+        });
+
+        return display;
+    } catch (error) {
+        console.error("An error occurred while capturing the display: ", error);
+        return null;
+    }
+}
 
 window.addEventListener('DOMContentLoaded', () => {
-    const input = document.querySelector('#code');
+    const code = document.querySelector('#code');
     const status = document.querySelector('#status');
     const statusDot = document.querySelector('#status_dot');
 
@@ -24,6 +114,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const controlToggle = document.querySelector('#control_toggle');
     const control = document.querySelector('#control');
     const port = document.querySelector('#port');
+    const portError = document.querySelector('#port_error');
     const method = document.querySelector('#method');
     const loginToggle = document.querySelector('#login_toggle');
     const login = document.querySelector('#login');
@@ -32,150 +123,120 @@ window.addEventListener('DOMContentLoaded', () => {
     const username = loginSettings.querySelector('#username');
     const password = loginSettings.querySelector('#password');
 
-    const iceSettings = document.querySelector('#ice_settings');
-    const stunInput = document.querySelector('#stun_server');
-    const stunError = document.querySelector('#stun_server_error');
-    const iceServersInput = document.querySelector('#ice_servers');
-    const iceServersError = document.querySelector('#ice_servers_error');
+    const advancedContainer = document.querySelector('#advanced_container');
+    const advancedToggle = document.querySelector('#advanced_toggle');
+    const advancedSettings = document.querySelector('#advanced_settings');
     const turnToggle = document.querySelector('#turn_toggle');
     const turnCustom = document.querySelector('#turn_custom');
     const turnCloudflare = document.querySelector('#turn_cloudflare');
-    const cloudflareKey = document.querySelector('#cloudflare_key');
+    const stun = document.querySelector('#stun_server');
+    const stunError = document.querySelector('#stun_server_error');
+    const turn = document.querySelector('#turn_servers');
+    const turnError = document.querySelector('#turn_servers_error');
+    const cloudflareId = document.querySelector('#cloudflare_id');
     const cloudflareToken = document.querySelector('#cloudflare_token');
     const cloudflareError = document.querySelector('#cloudflare_error');
-    const advancedToggle = document.querySelector('#advanced_toggle');
-    const advancedSettings = document.querySelector('#advanced_settings');
 
-    function startConnection() {
-        connection = method.value === 'websocket' ? new WebSocketConnection() : new WebRTCConnection();
-    };
+    const render = {
+        home: () => { // only during an active session's state changes
+            if (!connection) return;
+            const count = connection.getPeers('connected').size;
 
-    // Parses the ICE servers field from the text
-    function parseIceServers(text) {
-        const isValidServer = s => s && typeof s === 'object' && (typeof s.urls === 'string' || (Array.isArray(s.urls) && s.urls.length > 0));
-        if (!text.trim()) return { servers: null };
+            if (count > 0) {
+                updateStatus(`Connected${count > 1 ? ` (${count})` : ''}`, 'bg-green-500');
+            } else if (status.textContent.startsWith('Connected')) {
+                updateStatus('Disconnected', 'bg-red-500'); // only once the last connected viewer leaves
+            }
+        },
+        connections: () => {
+            const list = document.querySelector('.connections .connections_list');
+            const none = document.querySelector('.connections .no_connections');
+            list.innerHTML = '';
 
-        let servers;
-        try {
-            servers = JSON.parse(text);
-        } catch (error) {
-            return { error: `Your JSON array is invalid: ${error.message}` };
-        }
+            if (connection) {
+                for (const [sessionId, peer] of connection.getPeers()) {
+                    let item;
 
-        if (!Array.isArray(servers)) return { error: 'Your data must be formatted as a JSON array of servers.' };
-        if (servers.length === 0) return { error: 'You must have at least one server.' };
+                    switch (peer.state) {
+                        case 'pending':
+                        case 'connecting':
+                            item = document.querySelector('.connection_items .pending_item').cloneNode(true);
+                            item.querySelector('.item_name').textContent = (peer.meta?.ip ?? sessionId);
 
-        const badIndex = servers.findIndex(s => !isValidServer(s));
-        if (badIndex !== -1) return { error: `Server #${badIndex + 1} must contain a "urls" field.` };
+                            if (peer.state === 'connecting') {
+                                item.querySelector('.item_accept').disabled = true;
+                                item.querySelector('.item_decline').disabled = true;
 
-        try {
-            new RTCPeerConnection({ iceServers: servers }).close();
-        } catch (error) {
-            return { error: error.message };
-        }
+                                item.querySelector('.item_status').textContent = 'Connecting';
+                                item.querySelector('.item_desc').textContent = STEP_LABELS[peer.step] ?? 'Connecting...';
+                            } else {
+                                item.querySelector('.item_accept').addEventListener('click', () => approve(sessionId));
+                                item.querySelector('.item_decline').addEventListener('click', () => decline(sessionId));
+                            }
 
-        return { servers };
-    }
+                            list.appendChild(item);
+                            break;
+                        case 'connected':
+                            item = document.querySelector('.connection_items .active_item').cloneNode(true);
+                            item.querySelector('.item_name').textContent = (peer.meta?.ip ?? sessionId);
 
-    // Shows an error message under a field (or hides it if empty)
-    function showError(element, error) {
-        element.textContent = error ?? '';
-        element.classList.toggle('hidden', !error);
-    }
+                            const minutesAgo = Math.floor((Date.now() - peer.meta?.connectedAt) / 60000);
+                            item.querySelector('.item_text').textContent = (minutesAgo === 0 ? 'Connected just now' : `Connected ${minutesAgo}m ago`);
 
-    // Switches which TURN fields are visible (UI change)
-    function showTurnMode(mode) {
-        turnCustom.classList.toggle('hidden', mode !== 'custom');
-        turnCloudflare.classList.toggle('hidden', mode !== 'cloudflare');
-        turnToggle.textContent = (mode === 'custom' ? 'Use Cloudflare' : 'Use Custom');
-    }
-
-    function endConnection() {
-        connection = null;
-    };
-
-    // Changes the status of a toggle switch (UI change)
-    function toggleChange(toggle, val) {
-        const span = toggle.querySelector('span');
-
-        if (val) {
-            toggle.classList.remove('bg-gray-300');
-            toggle.classList.add('bg-gray-900');
-            span.classList.remove('translate-x-1');
-            span.classList.add('translate-x-6');
-        } else {
-            toggle.classList.remove('bg-gray-900');
-            toggle.classList.add('bg-gray-300');
-            span.classList.remove('translate-x-6');
-            span.classList.add('translate-x-1');
-        }
-    }
-
-    // Load the settings configuration from the main process
-    ipcRenderer.invoke('settings:load').then(settings => {
-        if (settings) {
-            audio.checked = (settings.audio ?? true);
-            control.checked = (settings.control ?? true);
-            port.value = (settings.port ?? 3000);
-            method.value = (settings.method ?? 'webrtc');
-
-            login.checked = (settings.login ?? false);
-            username.value = (settings.username ?? '');
-            // we're using hashed password w/ bcrypt so no updating password!
-
-            stunInput.value = (settings.stunServer ?? '');
-            iceServersInput.value = settings.iceServers ? JSON.stringify(settings.iceServers, null, 2) : '';
-            cloudflareKey.value = (settings.cloudflare?.keyId ?? '');
-            cloudflareToken.value = (settings.cloudflare?.apiToken ?? '');
-
-            turnMode = (settings.turnMode ?? 'custom');
-            showTurnMode(turnMode);
-            iceSettings.classList.toggle('hidden', method.value !== 'webrtc');
-
-            toggleChange(audioToggle, audio.checked);
-            toggleChange(controlToggle, control.checked);
-            toggleChange(loginToggle, login.checked);
-            if (login.checked) loginSettings.classList.remove('hidden');
-        }
-    });
-
-    // Gets the display media (screen + audio) and prepares for sharing
-    async function createDisplay() {
-        try {
-            const screen = await ipcRenderer.invoke('display');
-
-            display = await navigator.mediaDevices.getUserMedia({
-                audio: {
-                    mandatory: {
-                        chromeMediaSource: 'desktop',
+                            item.querySelector('.item_disconnect').addEventListener('click', () => disconnect(sessionId));
+                            list.appendChild(item);
+                            break;
+                        default:
+                            continue;
                     }
-                },
-                video: {
-                    mandatory: {
-                        chromeMediaSource: 'desktop',
-                        chromeMediaSourceId: screen.display[0].id,
-                        frameRate: { min: 15, ideal: 30, max: 60 },
-                        minWidth: screen.width,
-                        minHeight: screen.height,
-                        maxWidth: screen.width,
-                        maxHeight: screen.height,
-                    },
-                },
-            });
+                }
+            }
 
-            return display;
-        } catch (error) {
-            console.error("An error occurred while capturing the display: ", error);
-            return null;
+            if (list.children.length === 0) {
+                none.classList.remove('hidden');
+                list.classList.add('hidden');
+            } else {
+                none.classList.add('hidden');
+                list.classList.remove('hidden');
+            }
+        },
+        settings: () => {
+            if (settings) {
+                audio.checked = (settings?.audio ?? true);
+                control.checked = (settings?.control ?? true);
+                port.value = (settings?.port ?? 3000);
+                method.value = (settings?.method ?? 'webrtc');
+
+                login.checked = (settings?.login?.enabled ?? false);
+                username.value = (settings?.login?.username ?? '');
+                // we're using hashed password w/ bcrypt so no updating password!
+
+                // only overwrite if the field has no error (redrawing would overwrite it)
+                if (stunError.classList.contains('hidden')) stun.value = (settings?.ice?.stun ?? '');
+                if (turnError.classList.contains('hidden')) turn.value = (settings?.ice?.turn ? JSON.stringify(settings.ice.turn, null, 2) : '');
+                cloudflareId.value = (settings?.ice?.cloudflare?.id ?? '');
+                cloudflareToken.value = (settings?.ice?.cloudflare?.token ?? '');
+
+                const iceMethod = (settings?.ice?.method ?? 'custom');
+                turnCustom.classList.toggle('hidden', iceMethod !== 'custom');
+                turnCloudflare.classList.toggle('hidden', iceMethod !== 'cloudflare');
+                turnToggle.textContent = (iceMethod === 'custom' ? 'Use Cloudflare' : 'Use Custom');
+
+                toggleChange(audioToggle, audio.checked);
+                toggleChange(controlToggle, control.checked);
+                toggleChange(loginToggle, login.checked);
+                loginSettings.classList.toggle('hidden', !login.checked);
+                advancedContainer.classList.toggle('hidden', method.value !== 'webrtc');
+            }
         }
     }
 
     // Updates the status text and color based on the current state
-    function updateStatus(text, colorClass) {
+    function updateStatus(text, color) {
         status.textContent = text;
         statusDot.classList.remove('bg-gray-400', 'bg-green-500', 'bg-yellow-500', 'bg-red-500');
 
-        statusDot.classList.add(colorClass);
+        statusDot.classList.add(color);
     }
 
     // Passes viewer input to the remote input backend based on event
@@ -196,168 +257,215 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     // Handles viewer input forwarded by the main process (aka WebSockets)
-    function onInput(event, message) {
+    function onInput(_, message) {
         handleInput(message);
     }
 
-    // Approves a viewer's connection request and establishes a peer connection
+    // Approves a viewer's connection request
     async function approve(sessionId) {
-        if (!connection) return;
-        if (!display) {
-            await createDisplay();
-        }
+        if (!connection || !settings) return;
+        if (connection.getPeer(sessionId)?.state !== 'pending') return;
 
-        const iceServers = (connection instanceof WebRTCConnection) ? await ipcRenderer.invoke('ice:resolve', sessionId) : null; // resolved per viewer (like Cloudflare credentials)
-        let handshake = await connection.acceptOffer(sessionId, { display, iceServers }, audio.checked, (e) => {
-            // on message
-            try {
-                if (!e.data) return;
-                handleInput(JSON.parse(e.data));
-            } catch { };
-        }, async (state) => {
-            // on state change
-            if (!state) return;
-            await statusChange(state, sessionId); // update status, disconnect if needed
-        });
+        connection.updatePeer(sessionId, { state: 'connecting', step: 'resolving' }); // claim the peer
 
-        // Send the session response with the offer for the viewer to connect
-        if (!handshake) handshake = { sessionId, declined: true }; // decline if error occurred
-        await ipcRenderer.invoke('session:response', handshake);
-    };
+        try {
+            const iceServers = (connection instanceof WebRTCConnection) ? await ipcRenderer.invoke('ice:resolve', sessionId) : null;
+            const result = await connection.acceptOffer({ peerId: sessionId, iceServers, enableAudio: settings.audio });
+            if (!result.success) throw result.error;
 
-    // Declines a viewer's connection request
-    async function decline(sessionId) {
-        if (!connection) return;
-        connection.removeOffer(sessionId); // remove from wait list
+            await ipcRenderer.invoke('session:response', result.response);
+        } catch (error) {
+            if (!connection?.getPeer(sessionId)) return; // viewer left mid-approve (or the session stopped), already cleaned up
 
-        await ipcRenderer.invoke('session:response', {
-            sessionId,
-            declined: true
-        });
-
-        return updateConnections(); // no need to call statusChange since it was never an active connection
-    };
-
-    // Disconnects an active viewer connection and cleans up
-    async function disconnect(sessionId) {
-        if (!connection) return;
-        await connection.disconnect(sessionId);
-        await keyboardEvent({ method: 'releaseall' }); // release any keys the viewer was still holding
-
-        await ipcRenderer.invoke('session:disconnect', sessionId);
-        await statusChange("disconnected"); // must call statusChange to update status since it's an active connection, don't try to disconnect again
-    };
-
-    // Updates the connections list in the UI based on current connections and requests
-    function updateConnections() {
-        const list = document.querySelector('.connections .connections_list');
-        const none = document.querySelector('.connections .no_connections');
-        list.innerHTML = '';
-
-        if (connection) {
-            for (let [sessionId, meta] of connection.getPending().entries()) {
-                try {
-                    const item = document.querySelector('.connection_items .pending_item').cloneNode(true);
-                    item.querySelector('.item_name').textContent = (meta.ip ?? sessionId);
-
-                    item.querySelector('.item_accept').addEventListener('click', async (e) => {
-                        e.currentTarget.disabled = true;
-                        return approve(sessionId);
-                    });
-
-                    item.querySelector('.item_decline').addEventListener('click', async () => {
-                        return decline(sessionId);
-                    });
-
-                    list.appendChild(item);
-                } catch { };
-            }
-
-            for (let [sessionId, meta] of Object.entries(connection.filterConnections('connected'))) {
-                try {
-                    const item = document.querySelector('.connection_items .active_item').cloneNode(true);
-
-                    item.querySelector('.item_name').textContent = (meta?.ip ?? sessionId);
-
-                    const minutesAgo = Math.floor((Date.now() - meta?.connectedAt) / 60000);
-                    item.querySelector('.item_text').textContent = (minutesAgo === 0 ? 'Connected just now' : `Connected ${minutesAgo}m ago`);
-
-                    item.querySelector('.item_disconnect').addEventListener('click', async () => {
-                        return disconnect(sessionId);
-                    });
-
-                    list.appendChild(item);
-                } catch { };
-            }
-        }
-
-        if (list.children.length === 0) {
-            none.classList.remove('hidden');
-            list.classList.add('hidden');
-        } else {
-            none.classList.add('hidden');
-            list.classList.remove('hidden');
+            console.error(error);
+            alert(`An unknown error occurred while approving this connection request!\n\n${error.message}`);
+            await decline(sessionId, true); // send back a declined response and remove the peer
         }
     }
 
-    // Handles changes in the peer connection status
-    async function statusChange(state, shouldDisconnect = null) {
+    // Declines a viewer's connection request
+    async function decline(sessionId, failed = false) {
         if (!connection) return;
 
-        switch (state) {
-            case "connected":
-                updateStatus('Connected', 'bg-green-500');
-                break;
-            case "disconnected":
-                if (shouldDisconnect) await disconnect(shouldDisconnect);
+        const result = connection.declineOffer(sessionId);
+        if (!result.success) return;
 
-                if (Object.keys(connection.filterConnections('connected')).length === 0) {
-                    updateStatus('Disconnected', 'bg-red-500');
-                }
-                break;
-        }
+        await ipcRenderer.invoke('session:response', { ...result.response, failed });
+    };
 
-        return updateConnections();
+    // Disconnects an active viewer connection
+    async function disconnect(sessionId) {
+        connection?.removePeer(sessionId, 'host');
     }
 
     // Handles incoming connection requests from viewers
-    async function onRequest(event, { sessionId, auth = false, ip = null }) {
+    async function onRequest(_, { sessionId, auth = false, ip = null }) {
         if (!connection) return;
-        connection.addOffer(sessionId, { ip });
+        if (!connection.addPeer(sessionId, { ip })) return;
 
         if (auth) {
             await approve(sessionId);
         }
 
-        document.querySelector('.tab-btn.connections').click();
+        document.querySelector('.tab-btn.connections').click(); // open connections tab to alert the host
     };
 
     // Handles incoming session answers from viewers for connection
-    async function onAnswer(event, { sessionId, answer }) {
+    async function onAnswer(_, { sessionId, answer }) {
         if (!connection) return;
         if (!sessionId || !answer) return;
+        if (!connection.getPeer(sessionId)) return; // viewer already gone, ignore their answer
 
-        return await connection.acceptAnswer(sessionId, answer);
-    };
+        const result = await connection.acceptAnswer(sessionId, answer);
+        
+        if (!result.success) {
+            console.error(result.error);
+            alert(`An unknown error occurred while connecting to this viewer!\n\n${result.error.message}`);
 
-    // Handles unexpected disconnections from viewers
-    async function onDisconnect(event, sessionId) {
-        if (!connection) return;
-
-        if (connection.isConnected(sessionId)) {
-            await statusChange("disconnected", sessionId); // update status, disconnect if needed (exactly as we would handle an onconnectionstatechange)
-        } else if (connection.isPending(sessionId)) {
-            connection.removeOffer(sessionId); // just remove from pending if not connected yet
-            return updateConnections(); // no need to call statusChange since it was never an active connection
+            connection?.removePeer(sessionId, 'failed');
         }
     };
 
-    // Audio toggle switch event
+    // Handles unexpected disconnections from viewers
+    async function onDisconnect(_, sessionId) {
+        connection?.removePeer(sessionId, 'left');
+    };
+
+    ipcRenderer.invoke('settings:load').then(loaded => {
+        settings = loaded;
+        if (settings) render.settings();
+    });
+
+    async function startSession(forceAudio = false) {
+        if (connection || start.disabled) return; // already running or starting
+        start.disabled = true;
+
+        if (!forceAudio && method.value === 'websocket' && audio.checked) audioToggle.click(); // disable audio if enabled, unless forced
+
+        updateStatus('Waiting', 'bg-yellow-500');
+        start.innerHTML = 'Starting session...';
+
+        try {
+            if (!(await createDisplay())) throw new Error('Unable to capture your display.');
+
+            await initRemoteInput();
+            code.value = await ipcRenderer.invoke('session:start');
+
+            connection = (settings?.method === 'websocket' ? new WebSocketConnection(display) : new WebRTCConnection(display));
+        } catch (error) {
+            console.error(error);
+            alert(`The session could not be started. Please try again.\n\n${error.message}`);
+
+            // clean up what was just set up before
+            display?.getTracks().forEach(track => track.stop());
+            display = null;
+            connection = null;
+
+            await disposeRemoteInput();
+            await ipcRenderer.invoke('session:stop');
+
+            updateStatus('Inactive', 'bg-gray-400');
+            start.innerHTML = 'Start Session';
+            start.disabled = false;
+            return;
+        }
+
+        start.classList.add('hidden');
+        stop.classList.remove('hidden');
+        start.innerHTML = 'Start Session';
+        start.disabled = false;
+
+        updateStatus('Ready', 'bg-green-500');
+        container.classList.remove('hidden');
+        warning.classList.remove('hidden');
+
+        ipcRenderer.on('session:disconnect', onDisconnect);
+        ipcRenderer.on('session:request', onRequest);
+        ipcRenderer.on('session:answer', onAnswer);
+        ipcRenderer.on('remote:input', onInput);
+
+        for (const type of ['add', 'change', 'remove']) {
+            connection.addEventListener(type, () => {
+                // re-render list of connections and home page status
+                render.connections();
+                render.home();
+            });
+        }
+
+        // Cleans up after any removed viewer (host disconnected them, they left, connection dropped)
+        connection.addEventListener('remove', async (e) => {
+            const { peerId, reason } = e.detail;
+            if (reason === 'declined') return; // they were never connected to begin with, so skip lifting keys
+
+            await keyboardEvent({ method: 'releaseall' }); // lift all keys removed viewer could have been holding down
+            if (reason !== 'left') await ipcRenderer.invoke('session:disconnect', peerId); // tell the viewer!
+        });
+
+        connection.addEventListener('input', (e) => handleInput(e.detail.message));
+
+        refresh = setInterval(() => render.connections(), 30000); // keeps the connected times up to date
+
+        // End the session if the capture stops suddenly
+        const video = display.getVideoTracks()[0];
+        video?.addEventListener('ended', stopSession);
+        if (video?.readyState === 'ended') stopSession();
+    }
+
+    async function stopSession() {
+        const current = connection;
+        if (!current) return;
+        connection = null; // to prevent multiple calls
+
+        clearInterval(refresh);
+
+        // Notify every viewer the session ended before closing
+        for (const peerId of current.getPeers().keys()) {
+            await ipcRenderer.invoke('session:disconnect', peerId);
+        }
+
+        current.dispose();
+        await disposeRemoteInput();
+        await ipcRenderer.invoke('session:stop');
+
+        display?.getTracks().forEach(track => track.stop()); // end the screen capture (otherwise it keeps running)
+        display = null;
+
+        stop.classList.add('hidden');
+        start.classList.remove('hidden');
+
+        updateStatus('Inactive', 'bg-gray-400');
+
+        code.value = '';
+        container.classList.add('hidden');
+        warning.classList.add('hidden');
+
+        ipcRenderer.removeListener('session:disconnect', onDisconnect);
+        ipcRenderer.removeListener('session:request', onRequest);
+        ipcRenderer.removeListener('session:answer', onAnswer);
+        ipcRenderer.removeListener('remote:input', onInput);
+    }
+
+    async function copyCode() {
+        if (!connection) return;
+
+        try {
+            await navigator.clipboard.writeText(code.value);
+            copy.textContent = 'Copied!';
+        } catch {
+            copy.textContent = 'Failed';
+        }
+
+        setTimeout(() => {
+            copy.textContent = 'Copy';
+        }, 1000);
+    }
+
+    // Audio toggle
     audioToggle.addEventListener('click', async () => {
         let restart = false;
 
-        if (connection && display) {
-            const attempt = await connection.updateAudio((!audio.checked), { display });
+        if (connection) {
+            const attempt = connection.updateAudio(!audio.checked);
 
             if (method.value === 'websocket') {
                 if (attempt) {
@@ -368,228 +476,156 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        audio.checked = (!audio.checked);
-
-        ipcRenderer.invoke('settings:update', {
-            audio: audio.checked
-        });
-
-        toggleChange(audioToggle, audio.checked);
+        settings = await ipcRenderer.invoke('settings:update', { audio: !audio.checked });
+        render.settings();
 
         if (restart && connection) {
-            await sessionBridge.stop();
-            return await sessionBridge.start(true); // force audio
+            await stopSession();
+            return await startSession(true); // force audio this time
         }
     });
 
-    // Control toggle switch event
-    controlToggle.addEventListener('click', () => {
-        control.checked = (!control.checked);
-
-        ipcRenderer.invoke('settings:update', {
-            control: control.checked
-        });
-
-        return toggleChange(controlToggle, control.checked);
+    // Remote control toggle
+    controlToggle.addEventListener('click', async () => {
+        settings = await ipcRenderer.invoke('settings:update', { control: !control.checked });
+        render.settings();
     });
 
-    // Retain old port value in case of invalid input
-    let oldPort = null;
-    port.addEventListener('focus', () => {
-        oldPort = port.value;
+    // Port input field
+    port.addEventListener('change', async () => {
+        const requested = Number(port.value);
+        settings = await ipcRenderer.invoke('settings:update', { port: requested });
+
+        showError(portError, settings.port === requested ? null : `Port ${port.value || '(empty)'} is invalid or already in use.`);
+        render.settings(); // put the saved port back in the field
     });
 
-    // Port input change event
-    port.addEventListener('change', () => {
-        const portValue = parseInt(port.value);
-
-        if (portValue >= 1024 && portValue <= 65535) {
-            ipcRenderer.invoke('settings:update', {
-                port: portValue
-            });
-        } else {
-            port.value = oldPort ?? 3000;
-        }
-    });
-
-    document.querySelector('.tab-btn.connections').addEventListener('click', () => updateConnections());
-    const sessionBridge = {
-        start: async (forceAudio = false) => {
-            if (!forceAudio && method.value === 'websocket' && audio.checked) audioToggle.click(); // disable audio if enabled, unless forced
-
-            updateStatus('Waiting', 'bg-yellow-500');
-            start.innerHTML = 'Starting session...';
-
-            await createDisplay();
-            await initRemoteInput();
-            start.classList.add('hidden');
-            stop.classList.remove('hidden');
-
-            updateStatus('Active', 'bg-green-500');
-            start.innerHTML = 'Start Session';
-
-            input.value = await ipcRenderer.invoke('session:start');
-            container.classList.remove('hidden');
-            warning.classList.remove('hidden');
-
-            ipcRenderer.on('session:disconnect', onDisconnect);
-            ipcRenderer.on('session:request', onRequest);
-            ipcRenderer.on('session:answer', onAnswer);
-            ipcRenderer.on('remote:input', onInput);
-            return startConnection();
-        },
-        stop: async () => {
-            if (!connection) return;
-            await connection.disconnectAll();
-            await disposeRemoteInput();
-            await ipcRenderer.invoke('session:stop');
-
-            display?.getTracks().forEach(track => track.stop()); // end the screen capture (otherwise it keeps running until the app quits)
-            display = null;
-
-            stop.classList.add('hidden');
-            start.classList.remove('hidden');
-
-            updateStatus('Inactive', 'bg-gray-400');
-
-            input.value = '';
-            container.classList.add('hidden');
-            warning.classList.add('hidden');
-
-            ipcRenderer.removeListener('session:disconnect', onDisconnect);
-            ipcRenderer.removeListener('session:request', onRequest);
-            ipcRenderer.removeListener('session:answer', onAnswer);
-            ipcRenderer.removeListener('remote:input', onInput);
-            return endConnection();
-        },
-        copy: async () => {
-            if (!connection) return;
-
-            input.select();
-            document.execCommand('copy');
-            input.selectionEnd = input.selectionStart;
-            copy.textContent = 'Copied!';
-
-            setTimeout(() => {
-                copy.textContent = 'Copy';
-            }, 1000);
-        }
-    };
-
-    contextBridge.exposeInMainWorld('session', sessionBridge);
-
-    // Method dropdown change event
+    // Method protocol dropdown
     method.addEventListener('change', async () => {
         // if method was changed to a different method, stop current connections
         if (connection) {
             const current = (connection instanceof WebSocketConnection ? 'websocket' : 'webrtc');
 
             if (method.value !== current) {
-                await sessionBridge.stop();
+                await stopSession();
             }
         }
 
-        ipcRenderer.invoke('settings:update', {
-            method: method.value
-        });
-
-        iceSettings.classList.toggle('hidden', method.value !== 'webrtc');
+        settings = await ipcRenderer.invoke('settings:update', { method: method.value });
+        render.settings();
     });
 
-    // Save STUN server when changed and apply to new connections
-    stunInput.addEventListener('change', async () => {
-        const value = stunInput.value.trim();
+    // Unattended access toggle
+    loginToggle.addEventListener('click', async () => {
+        settings = await ipcRenderer.invoke('settings:update', {
+            login: {
+                enabled: !login.checked
+            }
+        });
+
+        render.settings();
+    });
+
+    // Unattended access username input field
+    username.addEventListener('change', async () => {
+        settings = await ipcRenderer.invoke('settings:update', {
+            login: {
+                username: username.value
+            }
+        });
+
+        render.settings();
+    });
+
+    // Unattended access password input field
+    password.addEventListener('change', async () => {
+        if (!password.value) return; // an empty field would wipe the saved password
+
+        settings = await ipcRenderer.invoke('settings:update', {
+            login: {
+                password: password.value
+            }
+        });
+
+        password.value = ''; // stored hashed, so don't leave it in the field
+        render.settings();
+    });
+
+    // Advanced options button
+    advancedToggle.addEventListener('click', () => {
+        const hidden = advancedSettings.classList.toggle('hidden');
+        advancedToggle.querySelector('svg').classList.toggle('rotate-180', !hidden);
+    });
+
+    // STUN input field (advanced options)
+    stun.addEventListener('change', async () => {
+        const value = stun.value.trim();
         const { error } = value ? parseIceServers(JSON.stringify([{ urls: value }])) : {};
 
         showError(stunError, error);
         if (error) return;
 
-        const settings = await ipcRenderer.invoke('settings:update', {
-            stunServer: value
+        settings = await ipcRenderer.invoke('settings:update', {
+            ice: {
+                stun: value
+            }
         });
 
-        stunInput.value = settings.stunServer; // shows the default if cleared
+        render.settings();
     });
 
-    // Save TURN servers when changed and apply to new connections
-    iceServersInput.addEventListener('change', () => {
-        const { servers, error } = parseIceServers(iceServersInput.value);
+    // TURN method switch (custom or Cloudflare)
+    turnToggle.addEventListener('click', async () => {
+        settings = await ipcRenderer.invoke('settings:update', {
+            ice: {
+                method: ((settings?.ice?.method ?? 'custom') === 'custom' ? 'cloudflare' : 'custom')
+            }
+        });
 
-        showError(iceServersError, error);
+        render.settings();
+    });
+
+    // TURN custom input field (advanced options)
+    turn.addEventListener('change', async () => {
+        const { servers, error } = parseIceServers(turn.value);
+
+        showError(turnError, error);
         if (error) return;
 
-        if (servers) {
-            iceServersInput.value = JSON.stringify(servers, null, 2);
-        }
-
-        ipcRenderer.invoke('settings:update', {
-            iceServers: servers
+        settings = await ipcRenderer.invoke('settings:update', {
+            ice: {
+                turn: servers
+            }
         });
+
+        render.settings();
     });
 
-    // Save Cloudflare keys when changed (validate keys before saving)
+    // TURN Cloudflare input fields (advanced options)
     async function saveCloudflare() {
-        const keys = { keyId: cloudflareKey.value.trim(), apiToken: cloudflareToken.value.trim() };
+        const keys = { id: cloudflareId.value.trim(), token: cloudflareToken.value.trim() };
 
-        if (keys.keyId && keys.apiToken) {
+        if (keys.id && keys.token) {
             const { valid, status } = await ipcRenderer.invoke('ice:test', keys);
 
             if (!valid) return showError(cloudflareError, [401, 403, 404].includes(status) ? `Your Cloudflare credentials are invalid.` : 'An unknown error occurred while validating your credentials.');
         }
 
         showError(cloudflareError, null);
-        ipcRenderer.invoke('settings:update', {
-            cloudflare: keys
+        settings = await ipcRenderer.invoke('settings:update', {
+            ice: {
+                cloudflare: keys
+            }
         });
+        
+        render.settings();
     }
 
-    cloudflareKey.addEventListener('change', saveCloudflare);
+    cloudflareId.addEventListener('change', saveCloudflare);
     cloudflareToken.addEventListener('change', saveCloudflare);
 
-    // Switch between custom and Cloudflare TURN servers
-    turnToggle.addEventListener('click', () => {
-        turnMode = (turnMode === 'custom' ? 'cloudflare' : 'custom');
-        showTurnMode(turnMode);
-
-        ipcRenderer.invoke('settings:update', {
-            turnMode
-        });
-    });
-
-    // Advanced options show/hide event
-    advancedToggle.addEventListener('click', () => {
-        const hidden = advancedSettings.classList.toggle('hidden');
-        advancedToggle.querySelector('svg').classList.toggle('rotate-180', !hidden);
-    });
-
-    // Unattended access toggle switch event
-    loginToggle.addEventListener('click', () => {
-        login.checked = (!login.checked);
-
-        if (login.checked) {
-            loginSettings.classList.remove('hidden');
-        } else {
-            loginSettings.classList.add('hidden');
-        }
-
-        ipcRenderer.invoke('settings:update', {
-            login: login.checked
-        });
-
-        return toggleChange(loginToggle, login.checked);
-    });
-
-
-    // Save unattended access credentials when changed
-    username.addEventListener('change', () => {
-        ipcRenderer.invoke('settings:update', {
-            username: username.value
-        });
-    });
-
-    password.addEventListener('change', () => {
-        ipcRenderer.invoke('settings:update', {
-            password: password.value
-        });
-    });
+    // Start, stop, and copy buttons
+    start.addEventListener('click', () => startSession());
+    stop.addEventListener('click', stopSession);
+    copy.addEventListener('click', copyCode);
 });
