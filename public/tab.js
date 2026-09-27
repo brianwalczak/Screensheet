@@ -1,5 +1,6 @@
 const label = document.querySelector(".label");
 
+// eslint-disable-next-line no-unused-vars
 function switchTab(tab) {
     const tabs = ["code", "login"];
     if (!tabs.includes(tab)) return;
@@ -35,5 +36,3 @@ function switchTab(tab) {
             break;
     }
 }
-
-window.switchTab = switchTab;

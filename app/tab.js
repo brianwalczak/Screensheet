@@ -25,4 +25,6 @@ function switchTab(tab) {
     });
 }
 
-window.switchTab = switchTab;
+for (const tab of ["home", "connections", "settings"]) {
+    document.querySelector(".tab-btn." + tab).addEventListener("click", () => switchTab(tab));
+}
