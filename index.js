@@ -13,7 +13,6 @@ const settingsPath = path.join((electron.isPackaged ? electron.getPath('userData
 let session;
 let settings;
 let window;
-let server;
 
 let ws = new Set();
 
@@ -49,7 +48,7 @@ function newServer(port = (settings?.port ?? 3000)) {
 
         http.once('error', onError);
         http.once('listening', onListening);
-        server = http.listen(port);
+        http.listen(port);
     });
 }
 
@@ -128,7 +127,7 @@ electron.on('before-quit', async (event) => {
 });
 
 // Returns the available display sources and their dimensions
-ipcMain.handle('display', async (event) => {
+ipcMain.handle('display', async () => {
     try {
         const display = await desktopCapturer.getSources({ types: ['screen'] });
 
@@ -143,7 +142,7 @@ ipcMain.handle('display', async (event) => {
     }
 });
 
-ipcMain.handle('stream:frame', async (event, frame) => {
+ipcMain.handle('stream:frame', async (_, frame) => {
     for (let socketId of ws) {
         try {
             io.to(socketId).volatile.emit('stream:frame', frame);
@@ -156,13 +155,13 @@ ipcMain.handle('stream:frame', async (event, frame) => {
 // -- Session Management -- //
 
 // Start a new session and generate a new session code
-ipcMain.handle('session:start', async (event) => {
+ipcMain.handle('session:start', async () => {
     session = { code: Math.random().toString(36).substring(2, 10).toUpperCase() };
     return session.code;
 });
 
 // Stop the current session (invalidate the session code)
-ipcMain.handle('session:stop', async (event) => {
+ipcMain.handle('session:stop', async () => {
     session = null;
     ws.clear();
     ice.revokeAll();
@@ -171,7 +170,7 @@ ipcMain.handle('session:stop', async (event) => {
 });
 
 // Sends session responses from the host to the viewer (accept or decline)
-ipcMain.handle('session:response', async (event, { sessionId, offer, type, iceServers, declined, failed }) => {
+ipcMain.handle('session:response', async (_, { sessionId, offer, type, iceServers, declined, failed }) => {
     try {
         if (sessionId) {
             if (offer && !declined) { // accept
@@ -188,7 +187,7 @@ ipcMain.handle('session:response', async (event, { sessionId, offer, type, iceSe
 });
 
 // Sends a disconnect signal to the viewer to end the session
-ipcMain.handle('session:disconnect', async (event, sessionId) => {
+ipcMain.handle('session:disconnect', async (_, sessionId) => {
     if (sessionId) {
         if (ws.has(sessionId)) {
             ws.delete(sessionId);
@@ -207,7 +206,7 @@ ipcMain.handle('session:disconnect', async (event, sessionId) => {
 // -- ICE Servers -- //
 
 // Resolves the ICE servers for a viewer (from settings)
-ipcMain.handle('ice:resolve', async (event, sessionId) => {
+ipcMain.handle('ice:resolve', async (_, sessionId) => {
     const iceServers = await ice.resolve(settings, sessionId);
     if (!io.sockets.sockets.has(sessionId)) ice.revoke(sessionId); // viewer left while resolving
 
@@ -215,7 +214,7 @@ ipcMain.handle('ice:resolve', async (event, sessionId) => {
 });
 
 // Tests Cloudflare TURN keys before saving them
-ipcMain.handle('ice:test', async (event, keys) => {
+ipcMain.handle('ice:test', async (_, keys) => {
     try {
         await ice.test(keys);
         return { valid: true };
@@ -232,7 +231,7 @@ ipcMain.handle('settings:load', async () => {
 });
 
 // Update settings file with modified settings from host
-ipcMain.handle('settings:update', async (event, modified) => {
+ipcMain.handle('settings:update', async (_, modified) => {
     try {
         if (modified?.login?.password) {
             modified.login.password = (await bcrypt.hash(modified.login.password, 10));

@@ -155,12 +155,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
             if (connection) {
                 for (const [sessionId, peer] of connection.getPeers()) {
-                    let item;
-
                     switch (peer.state) {
                         case 'pending':
-                        case 'connecting':
-                            item = document.querySelector('.connection_items .pending_item').cloneNode(true);
+                        case 'connecting': {
+                            const item = document.querySelector('.connection_items .pending_item').cloneNode(true);
                             item.querySelector('.item_name').textContent = (peer.meta?.ip ?? sessionId);
 
                             if (peer.state === 'connecting') {
@@ -176,8 +174,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
                             list.appendChild(item);
                             break;
-                        case 'connected':
-                            item = document.querySelector('.connection_items .active_item').cloneNode(true);
+                        }
+                        case 'connected': {
+                            const item = document.querySelector('.connection_items .active_item').cloneNode(true);
                             item.querySelector('.item_name').textContent = (peer.meta?.ip ?? sessionId);
 
                             const minutesAgo = Math.floor((Date.now() - peer.meta?.connectedAt) / 60000);
@@ -186,6 +185,7 @@ window.addEventListener('DOMContentLoaded', () => {
                             item.querySelector('.item_disconnect').addEventListener('click', () => disconnect(sessionId));
                             list.appendChild(item);
                             break;
+                        }
                         default:
                             continue;
                     }

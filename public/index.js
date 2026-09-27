@@ -16,7 +16,7 @@ import WebSocketConnection from './libs/websocket.js';
 let connection; // the current connection instance (WebRTC or WebSocket)
 const socket = io();
 
-const inputChange = (e) => {
+const inputChange = () => {
     error_container.classList.add('hidden');
 };
 
@@ -104,7 +104,7 @@ async function startConnection() {
     let payload = {};
 
     switch (document.querySelector('.tab.code').classList.contains('hidden')) {
-        case false:
+        case false: {
             const code = input.value.trim();
 
             if (code.length !== 8) {
@@ -114,7 +114,8 @@ async function startConnection() {
 
             payload = { code };
             break;
-        case true:
+        }
+        case true: {
             const user = username.value.trim();
             const pass = password.value.trim();
 
@@ -125,6 +126,7 @@ async function startConnection() {
 
             payload = { username: user, password: pass };
             break;
+        }
     }
 
     connect.textContent = 'Requesting approval...';

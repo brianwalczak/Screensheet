@@ -8,6 +8,8 @@
     "start": "npx electron .",
     "pack": "npx electron-builder --dir",
     "dist": "npx electron-builder",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "build:css/app": "npx @tailwindcss/cli -i ./app/input.css -o ./app/output.css",
     "build:css/public": "npx @tailwindcss/cli -i ./public/input.css -o ./public/output.css",
     "build:css": "npm run build:css/app && npm run build:css/public"
@@ -62,9 +64,12 @@
     }
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@tailwindcss/cli": "^4.1.14",
     "electron": "^38.2.2",
     "electron-builder": "^26.0.12",
+    "eslint": "^10.11.0",
+    "globals": "^17.12.0",
     "tailwindcss": "^4.1.14"
   },
   "dependencies": {

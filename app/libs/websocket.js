@@ -53,7 +53,7 @@ class WebSocketConnection {
     }
 
     // Accepts an offer from a viewer and creates a new websocket connection
-    async acceptOffer(socketId, { display }, enableAudio, onMessage, onStateChange) {
+    async acceptOffer(socketId, _, enableAudio, onMessage, onStateChange) {
         if (!socketId) return null;
 
         let meta = this.peers.pending.get(socketId);
@@ -93,7 +93,7 @@ class WebSocketConnection {
 
     // Allows audio sharing for websocket connections based on whether audio sharing is enabled
     async updateAudio(enableAudio) {
-        let confirmation = false;
+        let confirmation;
 
         if (enableAudio) {
             confirmation = confirm('Audio sharing is highly experimental for WebSocket connections and may increase CPU usage, as well as cause instability. It\'s highly recommended to use WebRTC for audio sharing.\n\nIf you continue, all users will be disconnected before proceeding. Are you sure you want to enable audio sharing?');

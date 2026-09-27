@@ -104,7 +104,7 @@ class StreamFrames {
             this.mediaRecorder.start(this.config.timeslice);
         } catch (error) {
             this.stop();
-            throw new Error("An unknown error occurred while starting the stream: " + error);
+            throw new Error("An unknown error occurred while starting the stream: " + error, { cause: error });
         }
     }
 

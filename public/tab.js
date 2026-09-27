@@ -35,3 +35,5 @@ function switchTab(tab) {
             break;
     }
 }
+
+window.switchTab = switchTab;

@@ -19,7 +19,7 @@ class WebSocketConnection {
     }
 
     // Accepts an offer from a viewer and sets up the connection
-    async acceptOffer(offer, onDisconnect) {
+    async acceptOffer(offer) {
         if (!this.socket || !offer) return null;
 
         this.eventsReady = true;

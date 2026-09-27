@@ -210,7 +210,7 @@ async function request(bus, target, method, args, options, timeoutMs = 10000) {
         requestInterface.removeAllListeners('Response');
 
         console.error(`Portal request "${method}" failed: `, error);
-        throw new Error('Your desktop was unable to start a remote session.');
+        throw new Error('Your desktop was unable to start a remote session.', { cause: error });
     }
 
     return response;

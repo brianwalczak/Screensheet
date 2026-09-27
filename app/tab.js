@@ -24,3 +24,5 @@ function switchTab(tab) {
         }
     });
 }
+
+window.switchTab = switchTab;
