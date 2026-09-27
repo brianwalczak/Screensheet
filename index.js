@@ -142,13 +142,14 @@ ipcMain.handle("display", async () => {
     }
 });
 
-ipcMain.handle("stream:frame", async (_, frame) => {
-    for (let socketId of ws) {
-        try {
-            io.to(socketId).volatile.emit("stream:frame", frame);
-        } catch (error) {
-            console.error("Error sending frame to socket ", socketId, ": ", error);
-        }
+// Sends a WebSocket viewer its own stream frames (only if the host accepted them)
+ipcMain.handle("stream:frame", async (_, { sessionId, frame }) => {
+    if (!ws.has(sessionId)) return;
+
+    try {
+        io.to(sessionId).volatile.emit("stream:frame", frame);
+    } catch (error) {
+        console.error("Error sending frame to socket ", sessionId, ": ", error);
     }
 });
 

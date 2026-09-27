@@ -1,94 +1,60 @@
 class StreamFrames {
-    constructor(screen, callback = null, enableAudio = false) {
-        if (!screen) throw new Error("A valid screen must be provided to start streaming.");
+    constructor(display, callback = null, enableAudio = false, onError = null) {
+        if (!display) throw new Error("A valid display must be provided to start streaming.");
 
         this.config = {
             fps: 15,
             bitrate: 500000,
             timeslice: 50,
             callback: callback,
+            onError: onError,
         };
 
         this.mediaRecorder = null;
-        this.enableAudio = enableAudio;
-        this.screen = screen;
-        this.codec = null;
-    }
+        this.enableAudio = enableAudio && display.getAudioTracks().length > 0;
+        this.display = display;
+        this.stream = null;
+        this.queue = Promise.resolve(); // keeps chunks sent in the order they were recorded
 
-    static async create(screen, callback = null, enableAudio = false) {
-        try {
-            const instance = new StreamFrames(screen, callback, enableAudio);
-            await instance.start();
+        const mimeTypes = this.enableAudio ? ["video/webm;codecs=vp8,opus", "video/webm;codecs=h264,opus", "video/webm;codecs=avc1,opus", "video/webm;codecs=vp9,opus", "video/mp4;codecs=avc1,mp4a.40.2"] : ["video/webm;codecs=vp8", "video/webm;codecs=h264", "video/webm;codecs=avc1", "video/webm;codecs=vp9", "video/mp4;codecs=avc1"];
+        this.codec = mimeTypes.find((mimeType) => MediaRecorder.isTypeSupported(mimeType)) ?? null;
 
-            return instance;
-        } catch (error) {
-            console.error("Failed to create a new instance: ", error);
-            return null;
-        }
+        if (!this.codec) throw new Error("No supported video codec was found.");
     }
 
     async start() {
-        if (!this.screen) return null;
-        if (!window.MediaRecorder) {
-            alert("Whoops, looks like your device does not support the MediaRecorder API! You may need to use a different protocol, such as WebRTC.");
-            throw new Error("MediaRecorder is not supported by this device.");
-        }
+        if (this.mediaRecorder) return;
 
         try {
-            if (!this.stream) {
-                this.stream = await navigator.mediaDevices.getUserMedia({
-                    audio: this.enableAudio
-                        ? {
-                              mandatory: {
-                                  chromeMediaSource: "desktop",
-                              },
-                          }
-                        : false,
-                    video: {
-                        mandatory: {
-                            chromeMediaSource: "desktop",
-                            chromeMediaSourceId: this.screen.display[0].id,
-                            frameRate: { min: this.config.fps - 5, ideal: this.config.fps, max: this.config.fps + 5 },
-                            minWidth: this.screen.width,
-                            minHeight: this.screen.height,
-                            maxWidth: this.screen.width,
-                            maxHeight: this.screen.height,
-                        },
-                    },
-                });
-            }
+            // clone the host's display tracks so stopping the stream here doesn't end the host's capture
+            const tracks = [...this.display.getVideoTracks(), ...(this.enableAudio ? this.display.getAudioTracks() : [])];
+            this.stream = new MediaStream(tracks.map((track) => track.clone()));
 
-            const mimeTypes = this.enableAudio ? ["video/webm;codecs=vp8,opus", "video/webm;codecs=h264,opus", "video/webm;codecs=avc1,opus", "video/webm;codecs=vp9,opus", "video/mp4;codecs=avc1,mp4a.40.2"] : ["video/webm;codecs=vp8", "video/webm;codecs=h264", "video/webm;codecs=avc1", "video/webm;codecs=vp9", "video/mp4;codecs=avc1"];
-
-            for (const mimeType of mimeTypes) {
-                if (MediaRecorder.isTypeSupported(mimeType)) {
-                    this.codec = mimeType;
-                    break;
-                }
-            }
-
-            if (!this.codec) {
-                throw new Error("No supported video codec found");
-            }
+            await this.stream
+                .getVideoTracks()[0]
+                ?.applyConstraints({ frameRate: { max: this.config.fps } })
+                .catch(() => {});
 
             this.mediaRecorder = new MediaRecorder(this.stream, {
                 mimeType: this.codec,
                 videoBitsPerSecond: this.config.bitrate,
             });
 
-            this.mediaRecorder.ondataavailable = async (event) => {
-                if (event.data && event.data.size > 0) {
-                    try {
-                        const arrayBuffer = await event.data.arrayBuffer();
+            this.mediaRecorder.ondataavailable = (event) => {
+                if (!event.data || event.data.size === 0) return;
 
+                this.queue = this.queue
+                    .then(async () => {
+                        const arrayBuffer = await event.data.arrayBuffer();
                         await this.config.callback(arrayBuffer);
-                    } catch {}
-                }
+                    })
+                    .catch(() => {});
             };
 
             this.mediaRecorder.onerror = (error) => {
+                console.error("An error occurred while recording the stream: ", error);
                 this.stop();
-                throw new Error(error);
+                this.config.onError?.(error);
             };
 
             this.mediaRecorder.start(this.config.timeslice);
@@ -99,17 +65,17 @@ class StreamFrames {
     }
 
     stop() {
-        if (this.mediaRecorder) {
+        if (this.mediaRecorder && this.mediaRecorder.state !== "inactive") {
             this.mediaRecorder.stop();
-            this.mediaRecorder = null;
         }
+
+        this.mediaRecorder = null;
 
         if (this.stream) {
             this.stream.getTracks().forEach((track) => track.stop());
             this.stream = null;
         }
 
-        this.codec = null;
         return true;
     }
 }

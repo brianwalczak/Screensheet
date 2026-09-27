@@ -1,135 +1,142 @@
 const { ipcRenderer } = require("electron");
 const StreamFrames = require("./frames.js");
 
-class WebSocketConnection {
-    constructor() {
-        this.peers = {
-            connected: new Map(), // stores active socket connections
-            pending: new Map(), // stores pending connection requests
-        };
+class WebSocketConnection extends EventTarget {
+    constructor(display) {
+        super();
 
-        this.frames = null;
-        this.audio = null;
-    }
-
-    getPending() {
-        return this.peers.pending;
-    }
-
-    isConnected(socketId) {
-        return this.peers.connected.has(socketId);
-    }
-
-    isPending(socketId) {
-        return this.peers.pending.has(socketId);
-    }
-
-    addOffer(socketId, meta) {
-        return this.peers.pending.set(socketId, meta);
-    }
-
-    removeOffer(socketId) {
-        return this.peers.pending.delete(socketId);
-    }
-
-    // Filters connections by their status; returns metadata of matching sockets
-    filterConnections(status = "all") {
-        let connections = {};
-
-        switch (status) {
-            case "connected":
-                for (let [socketId, meta] of this.peers.connected.entries()) {
-                    connections[socketId] = meta;
-                }
-                break;
-            case "pending":
-                for (let [socketId, meta] of this.peers.pending.entries()) {
-                    connections[socketId] = meta;
-                }
-                break;
+        if (!window.MediaRecorder) {
+            alert("Sorry, the MediaRecorder API is not supported by this device. You'll need to switch to a different protocol to continue.");
+            throw new Error("MediaRecorder is not supported by this device.");
         }
 
-        return connections;
+        this.display = display;
+        this.peers = new Map();
     }
 
-    // Accepts an offer from a viewer and creates a new websocket connection
-    async acceptOffer(socketId, _, enableAudio, onMessage, onStateChange) {
-        if (!socketId) return null;
+    getPeers(filter) {
+        return new Map([...this.peers].filter(([_, peer]) => !filter || peer.state === filter));
+    }
 
-        let meta = this.peers.pending.get(socketId);
-        if (!meta) return null;
+    getPeer(peerId) {
+        return this.peers.get(peerId);
+    }
 
-        this.removeOffer(socketId); // remove from wait list
-        this.peers.connected.set(socketId, { connectedAt: Date.now(), ip: meta?.ip });
-        onStateChange("connected");
+    addPeer(peerId, meta) {
+        if (this.getPeer(peerId)) return false;
+
+        const peer = { state: "pending", meta };
+        this.peers.set(peerId, peer);
+
+        this.dispatchEvent(new CustomEvent("add", { detail: { peerId, peer } }));
+        return true;
+    }
+
+    updatePeer(peerId, changes) {
+        const peer = this.getPeer(peerId);
+        if (!peer) return false;
+
+        Object.assign(peer, changes);
+        this.dispatchEvent(new CustomEvent("change", { detail: { peerId, ...changes } }));
+        return true;
+    }
+
+    removePeer(peerId, reason) {
+        const peer = this.getPeer(peerId);
+        if (!peer) return false;
+
+        peer.frames?.stop();
+        this.peers.delete(peerId);
+
+        this.dispatchEvent(new CustomEvent("remove", { detail: { peerId, reason } }));
+        return true;
+    }
+
+    // Accepts an offer from a viewer and prepares its own frame stream
+    acceptOffer({ peerId, enableAudio }) {
+        const peer = this.getPeer(peerId);
+        if (!this.display) return { success: false, error: new Error("No display is available to share.") };
+        if (peer?.state !== "connecting" || peer.frames) return { success: false, error: new Error("This viewer is no longer waiting to connect.") };
+
+        let frames;
 
         try {
-            const screen = await ipcRenderer.invoke("display");
-
-            this.frames = await StreamFrames.create(
-                screen,
-                async (frame) => {
-                    await ipcRenderer.invoke("stream:frame", frame);
-                },
+            frames = new StreamFrames(
+                this.display,
+                (frame) => ipcRenderer.invoke("stream:frame", { sessionId: peerId, frame }),
                 enableAudio,
+                () => this.removePeer(peerId, "failed"), // recording broke so the viewer's stream is dead
             );
         } catch (error) {
-            console.error("An error occurred while starting frame stream: ", error);
-
-            onStateChange("disconnected");
-            this.peers.connected.delete(socketId);
-            return null;
+            return { success: false, error };
         }
 
+        this.updatePeer(peerId, { frames, step: "answering" }); // waiting for the viewer's answer
+
         return {
-            sessionId: socketId,
-            type: "websocket",
-            offer: {
-                codec: this.frames.codec,
+            success: true,
+            response: {
+                sessionId: peerId,
+                type: "websocket",
+                offer: {
+                    codec: frames.codec,
+                },
             },
         };
     }
 
-    // No answer needed for websocket (unlike webrtc)
-    async acceptAnswer() {
-        return true;
+    // Declines an offer from a viewer
+    declineOffer(peerId) {
+        const peer = this.getPeer(peerId);
+        if (!peer || peer.state === "connected") return { success: false, error: new Error("This viewer request can no longer be declined.") };
+
+        this.removePeer(peerId, "declined");
+
+        return {
+            success: true,
+            response: {
+                sessionId: peerId,
+                declined: true,
+            },
+        };
+    }
+
+    // Accepts an answer from a viewer and starts streaming to them
+    async acceptAnswer(peerId) {
+        const peer = this.getPeer(peerId);
+        if (peer?.state !== "connecting" || !peer.frames) return { success: false, error: new Error("This viewer is not waiting for a connection.") };
+
+        this.updatePeer(peerId, { step: "establishing" });
+
+        try {
+            await peer.frames.start();
+        } catch (error) {
+            return { success: false, error };
+        }
+
+        if (!this.getPeer(peerId)) return { success: false, error: new Error("This viewer is no longer waiting to connect.") };
+
+        peer.meta.connectedAt = Date.now();
+        this.updatePeer(peerId, { state: "connected", step: null });
+        return { success: true };
     }
 
     // Allows audio sharing for websocket connections based on whether audio sharing is enabled
-    async updateAudio(enableAudio) {
-        let confirmation;
-
+    updateAudio(enableAudio) {
         if (enableAudio) {
-            confirmation = confirm("Audio sharing is highly experimental for WebSocket connections and may increase CPU usage, as well as cause instability. It's highly recommended to use WebRTC for audio sharing.\n\nIf you continue, all users will be disconnected before proceeding. Are you sure you want to enable audio sharing?");
-
-            if (confirmation) {
-                confirmation = confirm("This is your final warning. Are you absolutely sure you want to enable audio sharing for WebSocket connections?");
-            }
-        } else {
-            confirmation = confirm("Disabling audio sharing will disconnect all current users. Do you want to proceed?");
+            return confirm("Audio sharing is highly experimental for WebSocket connections and may increase CPU usage, as well as cause instability. It's highly recommended to use WebRTC for audio sharing.\n\nIf you continue, all users will be disconnected before proceeding. Are you sure you want to enable audio sharing?") && confirm("This is your final warning. Are you absolutely sure you want to enable audio sharing for WebSocket connections?");
         }
 
-        return confirmation;
+        return confirm("Disabling audio sharing will disconnect all current users. Do you want to proceed?");
     }
 
-    // Disconnects a specific socket connection
-    async disconnect(socketId) {
-        if (!this.peers.connected.has(socketId)) return null;
-        this.peers.connected.delete(socketId);
+    // Tears down the connection (stops every viewer's frame stream)
+    dispose() {
+        for (const peer of this.getPeers().values()) {
+            peer.frames?.stop();
+        }
 
-        if (this.frames) this.frames.stop() && (this.frames = null);
-        if (this.audio) this.audio.stop() && (this.audio = null);
-        return true;
-    }
-
-    // Disconnects all active socket connections
-    async disconnectAll() {
-        this.peers.connected.clear();
-        this.peers.pending.clear();
-
-        if (this.frames) this.frames.stop() && (this.frames = null);
-        if (this.audio) this.audio.stop() && (this.audio = null);
-        return true;
+        this.peers.clear();
     }
 }
 

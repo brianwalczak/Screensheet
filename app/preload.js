@@ -320,6 +320,8 @@ window.addEventListener("DOMContentLoaded", () => {
         const result = await connection.acceptAnswer(sessionId, answer);
 
         if (!result.success) {
+            if (!connection?.getPeer(sessionId)) return; // viewer left while connecting, already cleaned up
+
             console.error(result.error);
             alert(`An unknown error occurred while connecting to this viewer!\n\n${result.error.message}`);
 
