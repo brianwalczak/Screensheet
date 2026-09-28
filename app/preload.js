@@ -224,7 +224,7 @@ window.addEventListener("DOMContentLoaded", () => {
                 turnToggle.textContent = iceMethod === "custom" ? "Use Cloudflare" : "Use Custom";
 
                 toggleChange(audioToggle, audio.checked);
-                toggleChange(controlToggle, control.checked);
+                toggleChange(controlToggle, control.checked && !controlToggle.disabled); // shown off while remote input is unavailable
                 toggleChange(loginToggle, login.checked);
                 loginSettings.classList.toggle("hidden", !login.checked);
                 advancedContainer.classList.toggle("hidden", method.value !== "webrtc");
@@ -351,7 +351,8 @@ window.addEventListener("DOMContentLoaded", () => {
         try {
             if (!(await createDisplay())) throw new Error("Unable to capture your display.");
 
-            await initRemoteInput();
+            controlToggle.disabled = !(await initRemoteInput()); // grayed out for this session if input couldn't start
+            render.settings();
             code.value = await ipcRenderer.invoke("session:start");
 
             connection = settings?.method === "websocket" ? new WebSocketConnection(display) : new WebRTCConnection(display);
@@ -366,6 +367,8 @@ window.addEventListener("DOMContentLoaded", () => {
 
             await disposeRemoteInput();
             await ipcRenderer.invoke("session:stop");
+            controlToggle.disabled = false;
+            render.settings();
 
             updateStatus("Inactive", "bg-gray-400");
             start.innerHTML = "Start Session";
@@ -429,6 +432,8 @@ window.addEventListener("DOMContentLoaded", () => {
         current.dispose();
         await disposeRemoteInput();
         await ipcRenderer.invoke("session:stop");
+        controlToggle.disabled = false;
+        render.settings();
 
         display?.getTracks().forEach((track) => track.stop()); // end the screen capture (otherwise it keeps running)
         display = null;

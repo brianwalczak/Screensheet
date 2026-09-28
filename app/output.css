@@ -205,9 +205,6 @@
   .relative {
     position: relative;
   }
-  .static {
-    position: static;
-  }
   .top-1\/2 {
     top: calc(1 / 2 * 100%);
   }

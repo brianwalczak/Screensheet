@@ -6,7 +6,7 @@ let ready = false;
 
 // Sets up input when a hosting session starts
 async function init() {
-    if (ready) return;
+    if (ready) return backend !== disabled; // returns whether remote control is available
     ready = true;
 
     const isWayland = os.platform() === "linux" && (process.env.XDG_SESSION_TYPE === "wayland" || !!process.env.WAYLAND_DISPLAY);
@@ -16,9 +16,11 @@ async function init() {
         const selected = require(isWayland ? "./evdev.js" : "./nutjs.js");
         await selected.init();
         backend = selected;
+        return true;
     } catch (error) {
         console.error(error);
         alert(`${error.message}\n\nRemote control is disabled for this session. Restart the session to try again.`);
+        return false;
     }
 }
 
